@@ -5,24 +5,24 @@
  * Supports reusing a single doc (same URL each week) by passing an
  * existing doc ID — the content is cleared and rewritten in place.
  *
- * Uses Application Default Credentials (ADC), which are automatically
- * provided by the google-github-actions/auth workflow step via
- * Workload Identity Federation.
+ * Uses an access token from the google-github-actions/auth workflow step
+ * (GOOGLE_ACCESS_TOKEN env var), obtained via Workload Identity Federation
+ * with explicit Docs + Drive scopes.
  */
 
 const { google } = require('googleapis');
 
 /**
- * Get auth client using Application Default Credentials.
- * In GitHub Actions, these are set by google-github-actions/auth.
+ * Get auth client using the access token from the workflow.
  */
 function getAuth() {
-  return new google.auth.GoogleAuth({
-    scopes: [
-      'https://www.googleapis.com/auth/documents',
-      'https://www.googleapis.com/auth/drive',
-    ],
-  });
+  const token = process.env.GOOGLE_ACCESS_TOKEN;
+  if (!token) {
+    throw new Error('GOOGLE_ACCESS_TOKEN is not set. The google-github-actions/auth step must provide it.');
+  }
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({ access_token: token });
+  return oauth2Client;
 }
 
 /**
@@ -134,28 +134,7 @@ function hexToRgb(hex) {
  * @returns {{ docUrl: string, docId: string }}
  */
 async function createAnnouncementsDoc(sections, title, subtitle, docTitle, existingDocId) {
-  // Debug: check credentials
-  console.log(`  GOOGLE_APPLICATION_CREDENTIALS: ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'SET' : 'NOT SET'}`);
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    try {
-      const fs = require('fs');
-      const creds = JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
-      console.log(`  Credential type: ${creds.type}`);
-      console.log(`  Service account: ${creds.service_account_impersonation_url || creds.client_email || 'N/A'}`);
-    } catch (e) { console.log(`  Could not read credential file: ${e.message}`); }
-  }
-
   const auth = getAuth();
-
-  // Debug: verify auth works
-  try {
-    const client = await auth.getClient();
-    console.log(`  Auth client type: ${client.constructor.name}`);
-    const token = await client.getAccessToken();
-    console.log(`  Access token obtained: ${token ? 'YES' : 'NO'}`);
-  } catch (e) {
-    console.error(`  Auth error: ${e.message}`);
-  }
 
   const docs = google.docs({ version: 'v1', auth });
   const drive = google.drive({ version: 'v3', auth });

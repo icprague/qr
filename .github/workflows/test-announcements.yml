@@ -15,10 +15,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          token_format: 'access_token'
+          access_token_scopes: 'https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/drive'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -34,4 +37,5 @@ jobs:
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
           GOOGLE_DOC_ID: ${{ secrets.GOOGLE_DOC_ID }}
+          GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: node scripts/test-announcements.js
