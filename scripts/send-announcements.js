@@ -23,8 +23,8 @@
 const https = require('https');
 const http = require('http');
 const nodemailer = require('nodemailer');
-const cheerio = require('cheerio');
 const { updateAnnouncementsDoc } = require('./google-docs');
+const { parseNewsletter } = require('./parse-newsletter');
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -140,56 +140,6 @@ async function fetchLatestCampaignHtml() {
   if (!content.html) throw new Error('Campaign has no HTML content.');
   console.log(`Fetched ${content.html.length} bytes of campaign HTML.\n`);
   return content.html;
-}
-
-// ---------------------------------------------------------------------------
-// Step 2: Parse newsletter
-// ---------------------------------------------------------------------------
-
-function parseNewsletter(html) {
-  const $ = cheerio.load(html);
-  const sections = [];
-
-  const contentSelectors = ['td.mcnTextContent', '.templateContainer', '#templateBody', 'body'];
-  let $content = null;
-  for (const sel of contentSelectors) {
-    if ($(sel).length) { $content = $(sel); break; }
-  }
-  if (!$content) throw new Error('Could not locate content in newsletter HTML.');
-
-  $content.find('h1, h2, h3, h4, strong').each((_, el) => {
-    const $el = $(el);
-    const headingText = $el.text().trim();
-    if (!headingText || headingText.length > 200) return;
-
-    const contentParts = [];
-    let $next = $el.parent().is('td, div') ? $el.nextAll() : $el.parent().nextAll();
-    $next.each((__, sibling) => {
-      const $sib = $(sibling);
-      const tagName = $sib.prop('tagName');
-      if (tagName && /^H[1-4]$/.test(tagName)) return false;
-      if ($sib.find('h1, h2, h3, h4').length) return false;
-      const text = $sib.text().trim();
-      if (text) {
-        if (tagName === 'UL' || tagName === 'OL') {
-          $sib.find('li').each((___, li) => { const t = $(li).text().trim(); if (t) contentParts.push({ type: 'bullet', text: t }); });
-        } else {
-          contentParts.push({ type: 'paragraph', text });
-        }
-      }
-    });
-    if (contentParts.length > 0 || headingText.length > 3) sections.push({ heading: headingText, content: contentParts });
-  });
-
-  if (sections.length === 0) {
-    $content.find('p, li').each((_, el) => {
-      const text = $(el).text().trim();
-      if (text && text.length > 10) sections.push({ heading: '', content: [{ type: 'paragraph', text }] });
-    });
-  }
-
-  console.log(`Extracted ${sections.length} sections from newsletter.\n`);
-  return sections;
 }
 
 // ---------------------------------------------------------------------------

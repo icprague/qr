@@ -89,17 +89,24 @@ function buildDocRequests(sections, title, subtitle) {
   // --- Sections ---
   for (const section of sections) {
     if (section.heading) {
-      insertText(section.heading, true, false, 14, '#222A58', 'START', 'Raleway');
+      insertText(section.heading, true, false, 14, '#222A58', 'CENTER', 'Raleway');
       insertNewline();
     }
 
     for (const item of section.content) {
       if (item.type === 'bullet') {
-        insertText(`\u2022 ${item.text}`, false, false, 11, '#181C3A', 'START', 'Lato');
+        insertText(`\u2022 ${item.text}`, false, false, 11, '#181C3A', 'JUSTIFIED', 'Lato');
         insertNewline();
       } else {
-        insertText(item.text, false, false, 11, '#181C3A', 'START', 'Lato');
-        insertNewline();
+        // Split paragraphs by newline (matching Apps Script behavior)
+        const lines = item.text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed) {
+            insertText(trimmed, false, false, 11, '#181C3A', 'JUSTIFIED', 'Lato');
+            insertNewline();
+          }
+        }
       }
     }
 
