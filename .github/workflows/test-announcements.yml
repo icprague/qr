@@ -1,0 +1,36 @@
+name: "Test: Preview Announcements (Dry Run)"
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+permissions:
+  contents: read
+
+jobs:
+  test-announcements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run dry-run test
+        env:
+          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+        run: node scripts/test-announcements.js
+
+      - name: Upload announcements preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: announcements-preview
+          path: output/announcements-preview.html
+          retention-days: 7
