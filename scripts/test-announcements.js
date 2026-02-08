@@ -4,29 +4,29 @@
  * Dry-run version of send-announcements.js. Does everything EXCEPT send email.
  * - Fetches latest campaign from Mailchimp API
  * - Parses newsletter content
+ * - Creates a public Google Doc with announcements
  * - Looks up moderator from Planning Center
- * - Generates announcements HTML
- * - Saves HTML to output/ folder (uploaded as GitHub Actions artifact)
  * - Prints all results to the log so you can verify before going live
  *
  * Environment variables:
- *   MAILCHIMP_API_KEY        – Mailchimp API key
- *   PLANNING_CENTER_APP_ID   – Planning Center API application ID
- *   PLANNING_CENTER_SECRET   – Planning Center API secret
+ *   MAILCHIMP_API_KEY            – Mailchimp API key
+ *   GOOGLE_SERVICE_ACCOUNT_KEY   – JSON key for Google service account
+ *   PLANNING_CENTER_APP_ID       – Planning Center API application ID
+ *   PLANNING_CENTER_SECRET       – Planning Center API secret
  */
 
-const fs = require('fs');
-const path = require('path');
 const https = require('https');
 const http = require('http');
 const cheerio = require('cheerio');
+const { createAnnouncementsDoc } = require('./google-docs');
 
 // ---------------------------------------------------------------------------
-// Environment — only Mailchimp + Planning Center needed (no Gmail)
+// Environment
 // ---------------------------------------------------------------------------
 
 const REQUIRED_ENV = [
   'MAILCHIMP_API_KEY',
+  'GOOGLE_SERVICE_ACCOUNT_KEY',
   'PLANNING_CENTER_APP_ID',
   'PLANNING_CENTER_SECRET',
 ];
@@ -40,6 +40,7 @@ for (const key of REQUIRED_ENV) {
 
 const {
   MAILCHIMP_API_KEY,
+  GOOGLE_SERVICE_ACCOUNT_KEY,
   PLANNING_CENTER_APP_ID,
   PLANNING_CENTER_SECRET,
 } = process.env;
@@ -47,7 +48,7 @@ const {
 const mc_dc = MAILCHIMP_API_KEY.split('-').pop();
 
 // ---------------------------------------------------------------------------
-// Helpers (same as send-announcements.js)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function mailchimpGet(endpoint) {
@@ -112,10 +113,6 @@ function formatDate(date) {
 
 function formatDateShort(date) {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ---------------------------------------------------------------------------
@@ -190,52 +187,6 @@ function parseNewsletter(html) {
 }
 
 // ---------------------------------------------------------------------------
-// Generate announcements HTML
-// ---------------------------------------------------------------------------
-
-function generateAnnouncementsHtml(sections, sundayDate) {
-  const dateFormatted = formatDate(sundayDate);
-  const sectionHtml = sections
-    .map((s) => {
-      const heading = s.heading
-        ? `<h2 style="font-family:'Raleway',sans-serif;font-weight:700;font-size:14pt;color:#222A58;margin:20px 0 8px 0;">${escapeHtml(s.heading)}</h2>`
-        : '';
-      const content = s.content
-        .map((c) => c.type === 'bullet'
-          ? `<li style="font-family:'Lato',sans-serif;font-size:11pt;color:#181C3A;margin-bottom:4px;">${escapeHtml(c.text)}</li>`
-          : `<p style="font-family:'Lato',sans-serif;font-size:11pt;color:#181C3A;margin:0 0 8px 0;">${escapeHtml(c.text)}</p>`)
-        .join('\n');
-      const hasBullets = s.content.some((c) => c.type === 'bullet');
-      return heading + (hasBullets ? `<ul style="margin:8px 0 8px 20px;padding:0;">${content}</ul>` : content);
-    })
-    .join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sunday Announcements – ${escapeHtml(formatDateShort(sundayDate))}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-</head>
-<body style="max-width:700px;margin:0 auto;padding:30px 20px;background:#ffffff;">
-  <h1 style="font-family:'Raleway',sans-serif;font-weight:700;font-size:16pt;color:#222A58;text-align:center;margin:0 0 4px 0;">
-    SUNDAY ANNOUNCEMENTS
-  </h1>
-  <p style="font-family:'Lato',sans-serif;font-size:12pt;color:#444;text-align:center;font-style:italic;margin:0 0 30px 0;">
-    ${escapeHtml(dateFormatted)}
-  </p>
-  <hr style="border:none;border-top:2px solid #222A58;margin:0 0 20px 0;">
-  ${sectionHtml}
-  <hr style="border:none;border-top:1px solid #ccc;margin:30px 0 10px 0;">
-  <p style="font-family:'Lato',sans-serif;font-size:9pt;color:#999;text-align:center;">
-    Auto-generated from the weekly newsletter &bull; International Church of Prague
-  </p>
-</body>
-</html>`;
-}
-
-// ---------------------------------------------------------------------------
 // Planning Center: look up moderator
 // ---------------------------------------------------------------------------
 
@@ -249,24 +200,17 @@ async function testPlanningCenterLookup() {
   console.log('=== PLANNING CENTER: Looking up moderator ===');
   console.log(`  Target Sunday: ${dateStr}\n`);
 
-  // 1. Service types
   const serviceTypesRaw = await fetch('https://api.planningcenteronline.com/services/v2/service_types', { headers });
   const serviceTypes = JSON.parse(serviceTypesRaw);
   if (!serviceTypes.data || serviceTypes.data.length === 0) throw new Error('No service types found.');
 
   console.log('  Service types found:');
   serviceTypes.data.forEach((st) => console.log(`    - ${st.attributes.name} (ID: ${st.id})`));
-
   const serviceTypeId = serviceTypes.data[0].id;
   console.log(`\n  Using: ${serviceTypes.data[0].attributes.name}\n`);
 
-  // 2. Upcoming plans
-  const plansRaw = await fetch(
-    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=future&per_page=5`,
-    { headers }
-  );
+  const plansRaw = await fetch(`https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=future&per_page=5`, { headers });
   const plans = JSON.parse(plansRaw);
-
   if (!plans.data || plans.data.length === 0) throw new Error('No upcoming plans found.');
 
   console.log('  Upcoming plans:');
@@ -279,13 +223,8 @@ async function testPlanningCenterLookup() {
   }
   console.log(`\n  Selected plan: ${targetPlan.attributes.dates} (ID: ${targetPlan.id})\n`);
 
-  // 3. Team members
-  const teamMembersRaw = await fetch(
-    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`,
-    { headers }
-  );
+  const teamMembersRaw = await fetch(`https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`, { headers });
   const teamMembers = JSON.parse(teamMembersRaw);
-
   if (!teamMembers.data || teamMembers.data.length === 0) throw new Error('No team members found.');
 
   console.log('  All team members for this plan:');
@@ -309,37 +248,19 @@ async function testPlanningCenterLookup() {
 
   console.log(`  Matched moderator: ${moderator.attributes.name} (position: "${moderator.attributes.team_position_name}")`);
 
-  // 4. Email lookup
   const personId = moderator.relationships?.person?.data?.id;
-  if (!personId) {
-    console.log('  ** Could not get person ID — would fall back to CC_EMAIL');
-    return;
-  }
+  if (!personId) { console.log('  ** Could not get person ID — would fall back to CC_EMAIL'); return; }
 
-  // Try services people endpoint
   try {
-    const personRaw = await fetch(
-      `https://api.planningcenteronline.com/services/v2/people/${personId}/emails`,
-      { headers }
-    );
+    const personRaw = await fetch(`https://api.planningcenteronline.com/services/v2/people/${personId}/emails`, { headers });
     const emails = JSON.parse(personRaw);
-    if (emails.data && emails.data.length > 0) {
-      console.log(`  Email (services API): ${emails.data[0].attributes.address}`);
-      return;
-    }
+    if (emails.data?.length > 0) { console.log(`  Email (services API): ${emails.data[0].attributes.address}`); return; }
   } catch {}
 
-  // Try people endpoint
   try {
-    const peopleEmailRaw = await fetch(
-      `https://api.planningcenteronline.com/people/v2/people/${personId}/emails`,
-      { headers }
-    );
+    const peopleEmailRaw = await fetch(`https://api.planningcenteronline.com/people/v2/people/${personId}/emails`, { headers });
     const peopleEmails = JSON.parse(peopleEmailRaw);
-    if (peopleEmails.data && peopleEmails.data.length > 0) {
-      console.log(`  Email (people API): ${peopleEmails.data[0].attributes.address}`);
-      return;
-    }
+    if (peopleEmails.data?.length > 0) { console.log(`  Email (people API): ${peopleEmails.data[0].attributes.address}`); return; }
   } catch {}
 
   console.log('  ** Could not find email for moderator — would fall back to CC_EMAIL');
@@ -366,24 +287,24 @@ async function main() {
     console.log(`  [${i + 1}] ${s.heading || '(no heading)'}`);
     s.content.forEach((c) => {
       const prefix = c.type === 'bullet' ? '      * ' : '      ';
-      // Truncate long text for readability
       const text = c.text.length > 120 ? c.text.substring(0, 120) + '...' : c.text;
       console.log(`${prefix}${text}`);
     });
   });
 
-  // --- Test 2: Generate HTML and save to file ---
-  console.log('\n=== GENERATING ANNOUNCEMENTS HTML ===');
-  const htmlContent = generateAnnouncementsHtml(sections, sundayDate);
-
-  const outputDir = path.resolve(__dirname, '..', 'output');
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
-
-  const outputFile = path.join(outputDir, 'announcements-preview.html');
-  fs.writeFileSync(outputFile, htmlContent, 'utf-8');
-  console.log(`  Saved to: ${outputFile}`);
-  console.log(`  Size: ${htmlContent.length} bytes`);
-  console.log('  >> Download this file from the workflow artifacts to preview in your browser\n');
+  // --- Test 2: Create Google Doc ---
+  console.log('\n=== CREATING GOOGLE DOC ===');
+  const docTitle = `[TEST] Sunday Announcements – ${formatDateShort(sundayDate)}`;
+  const { docUrl, docId } = await createAnnouncementsDoc(
+    GOOGLE_SERVICE_ACCOUNT_KEY,
+    sections,
+    'SUNDAY ANNOUNCEMENTS',
+    formatDate(sundayDate),
+    docTitle
+  );
+  console.log(`\n  >> Open this link to preview: ${docUrl}`);
+  console.log(`  >> Doc ID: ${docId}`);
+  console.log('  >> Anyone with the link can view it\n');
 
   // --- Test 3: Planning Center moderator lookup ---
   try {
@@ -394,6 +315,7 @@ async function main() {
 
   console.log(`\n========================================`);
   console.log(`  DRY RUN COMPLETE — No email was sent`);
+  console.log(`  Google Doc: ${docUrl}`);
   console.log(`========================================\n`);
 }
 

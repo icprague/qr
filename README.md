@@ -11,9 +11,12 @@ A single-page landing page and automated workflow system that replaces the physi
 | `newsletter-link.json` | Auto-updated each Tuesday with the latest Mailchimp newsletter URL |
 | `robots.txt` | Blocks all search engine indexing |
 | `scripts/update-newsletter-link.js` | Fetches latest newsletter URL via Mailchimp API |
-| `scripts/send-announcements.js` | Fetches newsletter via Mailchimp API, looks up moderator in Planning Center, emails announcements |
-| `.github/workflows/update-newsletter-link.yml` | Tuesday 9 AM (Prague) – updates newsletter link |
-| `.github/workflows/send-announcements.yml` | Friday 4 PM (Prague) – generates and sends announcements email |
+| `scripts/send-announcements.js` | Fetches newsletter via Mailchimp API, creates Google Doc, looks up moderator, emails link |
+| `scripts/test-announcements.js` | Dry-run version — creates Google Doc and shows Planning Center lookup, no email sent |
+| `scripts/google-docs.js` | Shared module for creating and sharing Google Docs |
+| `.github/workflows/update-newsletter-link.yml` | Updates newsletter link (schedule disabled — manual only until enabled) |
+| `.github/workflows/send-announcements.yml` | Generates announcements and emails (schedule disabled — manual only until enabled) |
+| `.github/workflows/test-announcements.yml` | Manual-only dry run for testing |
 
 ---
 
@@ -62,6 +65,7 @@ Go to your repo → **Settings** → **Secrets and variables** → **Actions** �
 | Secret name | What to put | Where to get it |
 |---|---|---|
 | `MAILCHIMP_API_KEY` | Your Mailchimp API key (e.g. `abc123-us7`) | Mailchimp → Account → Extras → [API keys](https://us1.admin.mailchimp.com/account/api/) → Create A Key |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Full JSON key for Google service account | See "Set up Google service account" below |
 | `PLANNING_CENTER_APP_ID` | Planning Center API application ID | [Planning Center Developer](https://api.planningcenteronline.com/oauth/applications) → create a Personal Access Token → copy the App ID |
 | `PLANNING_CENTER_SECRET` | Planning Center API secret token | Same as above → copy the Secret |
 | `GMAIL_USER` | Church Gmail address (e.g. `church@gmail.com`) | Your church's Gmail account |
@@ -69,6 +73,23 @@ Go to your repo → **Settings** → **Secrets and variables** → **Actions** �
 | `CC_EMAIL` | Your email address (for CC on announcements) | Your personal/church email |
 
 > **Gmail app password**: You must have 2-Step Verification enabled on the Gmail account. Then go to [App Passwords](https://myaccount.google.com/apppasswords), select "Mail" and "Other", and generate a 16-character password.
+
+#### Set up Google service account
+
+The announcements workflow creates a Google Doc (viewable by anyone with the link). This requires a Google Cloud service account:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or use an existing one)
+3. Enable these APIs (search in "APIs & Services" → "Library"):
+   - **Google Docs API**
+   - **Google Drive API**
+4. Go to "APIs & Services" → **Credentials** → **Create Credentials** → **Service account**
+5. Give it a name (e.g. `icp-announcements`) and click through
+6. On the service account page, go to **Keys** → **Add Key** → **Create new key** → **JSON**
+7. A `.json` file will download — this is your key
+8. Open the file, copy the **entire contents**, and paste it as the value of the `GOOGLE_SERVICE_ACCOUNT_KEY` secret in GitHub
+
+> The service account creates docs in its own Drive. By setting sharing to "anyone with link", anyone can view the doc without needing to be in your organization.
 
 ### 5. Verify the workflows
 
@@ -97,9 +118,9 @@ Both workflows can be triggered manually for testing:
 1. The workflow runs and executes `scripts/send-announcements.js`
 2. The script calls the Mailchimp API to get the latest campaign's HTML content
 3. It parses the HTML to extract headings, paragraphs, and bullet points
-4. It calls the Planning Center API to find who is assigned as moderator for the upcoming Sunday
-5. It generates a styled HTML announcements document
-6. It sends the document via Gmail to the moderator (CC to your email)
+4. It creates a Google Doc with the formatted announcements (shared as "anyone with the link can view")
+5. It calls the Planning Center API to find who is assigned as moderator for the upcoming Sunday
+6. It sends an email with the Google Doc link to the moderator (CC to your email)
 
 ---
 
@@ -110,10 +131,13 @@ qr/
 ├── .github/
 │   └── workflows/
 │       ├── update-newsletter-link.yml
-│       └── send-announcements.yml
+│       ├── send-announcements.yml
+│       └── test-announcements.yml
 ├── scripts/
 │   ├── update-newsletter-link.js
-│   └── send-announcements.js
+│   ├── send-announcements.js
+│   ├── test-announcements.js
+│   └── google-docs.js
 ├── .gitignore
 ├── config.json
 ├── index.html
@@ -128,7 +152,7 @@ qr/
 ## Maintenance
 
 - **Change button URLs**: Edit `config.json` and commit
-- **Change schedule**: Edit the `cron` lines in the workflow YAML files. Use [crontab.guru](https://crontab.guru/) to build cron expressions. Remember the cron times are in **UTC**.
+- **Enable schedules**: The cron schedules are commented out by default. To enable automatic runs, edit the workflow YAML files and uncomment the `schedule` section. The times are in **UTC** — use [crontab.guru](https://crontab.guru/) to adjust.
 - **Moderator detection**: The announcements script looks for Planning Center team positions containing: "moderator", "mc", "host", "emcee", or "worship leader". If your church uses different position names, edit the `moderatorKeywords` array in `scripts/send-announcements.js`.
 - **Newsletter parsing**: If Mailchimp changes their email template structure, you may need to update the CSS selectors in `scripts/send-announcements.js` (the `contentSelectors` and heading-walking logic).
 - **Mailchimp API key**: If your key is revoked or rotated, update the `MAILCHIMP_API_KEY` secret. The data center (e.g. `us7`) is extracted automatically from the key.

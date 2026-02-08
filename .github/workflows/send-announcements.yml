@@ -1,11 +1,11 @@
 name: Send Sunday Announcements
 
 on:
-  schedule:
-    # Every Friday at 4:00 PM Prague time (Europe/Prague)
-    # 4 PM CET = 15:00 UTC | 4 PM CEST = 14:00 UTC
-    # We use 14:00 UTC to cover summer time; the script handles the timezone.
-    - cron: '0 14 * * 5'
+  # Schedule disabled until setup is complete. Uncomment to enable:
+  # schedule:
+  #   # Every Friday at 4:00 PM Prague time (Europe/Prague)
+  #   # 4 PM CET = 15:00 UTC | 4 PM CEST = 14:00 UTC
+  #   - cron: '0 14 * * 5'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -29,6 +29,7 @@ jobs:
       - name: Generate announcements and send email
         env:
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}

@@ -1,12 +1,12 @@
 name: Update Newsletter Link
 
 on:
-  schedule:
-    # Every Tuesday at 9:00 AM Prague time (Europe/Prague)
-    # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
-    # 9 AM CET = 8:00 UTC | 9 AM CEST = 7:00 UTC
-    # We use 7:00 UTC to cover summer time; the script handles the timezone.
-    - cron: '0 7 * * 2'
+  # Schedule disabled until setup is complete. Uncomment to enable:
+  # schedule:
+  #   # Every Tuesday at 9:00 AM Prague time (Europe/Prague)
+  #   # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
+  #   # 9 AM CET = 8:00 UTC | 9 AM CEST = 7:00 UTC
+  #   - cron: '0 7 * * 2'
   workflow_dispatch: # Allow manual trigger
 
 permissions:

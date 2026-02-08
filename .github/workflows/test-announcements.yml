@@ -24,13 +24,7 @@ jobs:
       - name: Run dry-run test
         env:
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
         run: node scripts/test-announcements.js
-
-      - name: Upload announcements preview
-        uses: actions/upload-artifact@v4
-        with:
-          name: announcements-preview
-          path: output/announcements-preview.html
-          retention-days: 7
