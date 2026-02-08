@@ -7,13 +7,14 @@
  *
  * Environment variables:
  *   MAILCHIMP_ARCHIVE_URL – Full URL to your Mailchimp campaign archive page
- *                           (e.g. https://us1.campaign-archive.com/home/?u=xxx&id=yyy)
+ *                           (e.g. https://us7.campaign-archive.com/home/?u=xxx&id=yyy)
  */
 
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const cheerio = require('cheerio');
 
 const ARCHIVE_URL = process.env.MAILCHIMP_ARCHIVE_URL;
 const OUTPUT_FILE = path.resolve(__dirname, '..', 'newsletter-link.json');
@@ -33,7 +34,12 @@ function fetch(url, redirects = 0) {
     client
       .get(url, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return resolve(fetch(res.headers.location, redirects + 1));
+          let next = res.headers.location;
+          if (next.startsWith('/')) {
+            const u = new URL(url);
+            next = u.origin + next;
+          }
+          return resolve(fetch(next, redirects + 1));
         }
         if (res.statusCode !== 200) {
           return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
@@ -49,32 +55,71 @@ function fetch(url, redirects = 0) {
 async function main() {
   console.log(`Fetching Mailchimp archive: ${ARCHIVE_URL}`);
   const html = await fetch(ARCHIVE_URL);
+  console.log(`Fetched ${html.length} bytes`);
 
-  // Mailchimp archive pages list campaigns as links like:
-  //   <a href="https://mailchi.mp/..." ...>  or
-  //   <a href="https://us1.campaign-archive.com/..." ...>
-  // We grab the first campaign link on the page (most recent).
-  const linkPatterns = [
-    // mailchi.mp short links
-    /href="(https?:\/\/mailchi\.mp\/[^"]+)"/gi,
-    // campaign-archive.com full links (but not the /home/ page itself)
-    /href="(https?:\/\/[^"]*campaign-archive\.com\/\?[^"]+)"/gi,
-  ];
+  const $ = cheerio.load(html);
 
-  let newestUrl = null;
+  // Collect ALL links on the page for analysis
+  const allLinks = [];
+  $('a[href]').each((_, el) => {
+    allLinks.push($(el).attr('href'));
+  });
 
-  for (const pattern of linkPatterns) {
-    const match = pattern.exec(html);
-    if (match) {
-      newestUrl = match[1];
-      break;
-    }
+  console.log(`Found ${allLinks.length} total links on archive page`);
+
+  // Parse the archive URL so we can exclude it and its variations
+  const archiveUrlObj = new URL(ARCHIVE_URL);
+
+  // Filter for campaign links — these are links that:
+  //  - Point to campaign-archive.com (without /home/ path) OR
+  //  - Point to mailchi.mp OR
+  //  - Point to eepurl.com
+  // We exclude the archive page itself (/home/ path)
+  const campaignLinks = allLinks.filter((href) => {
+    if (!href) return false;
+
+    // Normalize HTML entities
+    const link = href.replace(/&amp;/g, '&');
+
+    // Skip the archive page itself (contains /home/)
+    if (link.includes('/home/')) return false;
+    // Skip anchors and javascript
+    if (link.startsWith('#') || link.startsWith('javascript:')) return false;
+    // Skip mailchimp.com main site links
+    if (link.includes('mailchimp.com')) return false;
+
+    // Match known campaign link patterns
+    if (/campaign-archive\.com/i.test(link)) return true;
+    if (/mailchi\.mp/i.test(link)) return true;
+    if (/eepurl\.com/i.test(link)) return true;
+
+    return false;
+  });
+
+  // Log what we found for debugging
+  if (campaignLinks.length === 0) {
+    console.log('\nNo campaign links found. All links on page:');
+    allLinks.forEach((link, i) => {
+      console.log(`  [${i}] ${link}`);
+    });
+    // Also dump a snippet of the HTML for debugging
+    console.log('\nFirst 2000 chars of HTML:');
+    console.log(html.substring(0, 2000));
+    console.error('\nError: Could not find any newsletter link on the archive page.');
+    process.exit(1);
   }
 
-  if (!newestUrl) {
-    console.error('Error: Could not find any newsletter link on the archive page.');
-    console.error('The archive page HTML may have changed. Check the URL and page structure.');
-    process.exit(1);
+  console.log(`Found ${campaignLinks.length} campaign links:`);
+  campaignLinks.slice(0, 5).forEach((link, i) => {
+    console.log(`  [${i}] ${link}`);
+  });
+
+  // Take the first one (most recent campaign — Mailchimp lists newest first)
+  let newestUrl = campaignLinks[0].replace(/&amp;/g, '&');
+
+  // Make sure it's an absolute URL
+  if (newestUrl.startsWith('/')) {
+    newestUrl = archiveUrlObj.origin + newestUrl;
   }
 
   const data = {
@@ -83,7 +128,7 @@ async function main() {
   };
 
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-  console.log(`Updated newsletter-link.json:`);
+  console.log(`\nUpdated newsletter-link.json:`);
   console.log(`  url: ${data.url}`);
   console.log(`  updatedAt: ${data.updatedAt}`);
 }
