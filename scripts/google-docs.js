@@ -134,7 +134,28 @@ function hexToRgb(hex) {
  * @returns {{ docUrl: string, docId: string }}
  */
 async function createAnnouncementsDoc(sections, title, subtitle, docTitle, existingDocId) {
+  // Debug: check credentials
+  console.log(`  GOOGLE_APPLICATION_CREDENTIALS: ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'SET' : 'NOT SET'}`);
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    try {
+      const fs = require('fs');
+      const creds = JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
+      console.log(`  Credential type: ${creds.type}`);
+      console.log(`  Service account: ${creds.service_account_impersonation_url || creds.client_email || 'N/A'}`);
+    } catch (e) { console.log(`  Could not read credential file: ${e.message}`); }
+  }
+
   const auth = getAuth();
+
+  // Debug: verify auth works
+  try {
+    const client = await auth.getClient();
+    console.log(`  Auth client type: ${client.constructor.name}`);
+    const token = await client.getAccessToken();
+    console.log(`  Access token obtained: ${token ? 'YES' : 'NO'}`);
+  } catch (e) {
+    console.error(`  Auth error: ${e.message}`);
+  }
 
   const docs = google.docs({ version: 'v1', auth });
   const drive = google.drive({ version: 'v3', auth });
