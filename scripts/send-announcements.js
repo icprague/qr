@@ -1,14 +1,14 @@
 /**
  * send-announcements.js
  *
- * 1. Fetches the latest Mailchimp newsletter from the campaign archive.
+ * 1. Uses Mailchimp API to get the latest sent campaign and its HTML content.
  * 2. Parses the HTML to extract headings and content.
  * 3. Calls Planning Center API to find the upcoming Sunday moderator's email.
  * 4. Generates a styled HTML announcements document.
  * 5. Sends the document as an email via Gmail SMTP.
  *
  * Environment variables (set as GitHub Secrets):
- *   MAILCHIMP_ARCHIVE_URL    – Campaign archive page URL
+ *   MAILCHIMP_API_KEY        – Mailchimp API key (e.g. abc123def456-us7)
  *   PLANNING_CENTER_APP_ID   – Planning Center API application ID
  *   PLANNING_CENTER_SECRET   – Planning Center API secret
  *   GMAIL_USER               – Gmail address used to send email
@@ -26,7 +26,7 @@ const cheerio = require('cheerio');
 // ---------------------------------------------------------------------------
 
 const REQUIRED_ENV = [
-  'MAILCHIMP_ARCHIVE_URL',
+  'MAILCHIMP_API_KEY',
   'PLANNING_CENTER_APP_ID',
   'PLANNING_CENTER_SECRET',
   'GMAIL_USER',
@@ -41,7 +41,7 @@ for (const key of REQUIRED_ENV) {
 }
 
 const {
-  MAILCHIMP_ARCHIVE_URL,
+  MAILCHIMP_API_KEY,
   PLANNING_CENTER_APP_ID,
   PLANNING_CENTER_SECRET,
   GMAIL_USER,
@@ -49,9 +49,43 @@ const {
   CC_EMAIL,
 } = process.env;
 
+// Extract data center from API key
+const mc_dc = MAILCHIMP_API_KEY.split('-').pop();
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Mailchimp API GET request. */
+function mailchimpGet(endpoint) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: `${mc_dc}.api.mailchimp.com`,
+      path: `/3.0${endpoint}`,
+      headers: {
+        Authorization: `Bearer ${MAILCHIMP_API_KEY}`,
+      },
+    };
+
+    https
+      .get(options, (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const body = Buffer.concat(chunks).toString('utf-8');
+          if (res.statusCode !== 200) {
+            return reject(new Error(`Mailchimp API ${res.statusCode}: ${body}`));
+          }
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(new Error(`Failed to parse Mailchimp response: ${e.message}`));
+          }
+        });
+      })
+      .on('error', reject);
+  });
+}
 
 /** Simple HTTP(S) GET with redirect following. */
 function fetch(url, options = {}, redirects = 0) {
@@ -118,39 +152,46 @@ function formatDateShort(date) {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: Fetch latest newsletter URL from Mailchimp archive
+// Step 1: Fetch latest campaign HTML content via Mailchimp API
 // ---------------------------------------------------------------------------
 
-async function fetchLatestNewsletterUrl() {
-  console.log('Fetching Mailchimp campaign archive...');
-  const html = await fetch(MAILCHIMP_ARCHIVE_URL);
+async function fetchLatestCampaignHtml() {
+  console.log('Fetching most recent sent campaign from Mailchimp API...');
 
-  const linkPatterns = [
-    /href="(https?:\/\/mailchi\.mp\/[^"]+)"/i,
-    /href="(https?:\/\/[^"]*campaign-archive\.com\/\?[^"]+)"/i,
-  ];
+  const data = await mailchimpGet(
+    '/campaigns?sort_field=send_time&sort_dir=DESC&count=1&status=sent'
+  );
 
-  for (const pattern of linkPatterns) {
-    const match = pattern.exec(html);
-    if (match) return match[1];
+  if (!data.campaigns || data.campaigns.length === 0) {
+    throw new Error('No sent campaigns found in Mailchimp.');
   }
 
-  throw new Error('Could not find latest newsletter link on archive page.');
+  const campaign = data.campaigns[0];
+  const campaignId = campaign.id;
+  const subject = campaign.settings?.subject_line || '(no subject)';
+  console.log(`Latest campaign: "${subject}" (ID: ${campaignId})`);
+
+  // Fetch the full HTML content of the campaign
+  console.log('Fetching campaign HTML content...');
+  const content = await mailchimpGet(`/campaigns/${campaignId}/content`);
+
+  if (!content.html) {
+    throw new Error('Campaign has no HTML content.');
+  }
+
+  console.log(`Fetched ${content.html.length} bytes of campaign HTML.`);
+  return content.html;
 }
 
 // ---------------------------------------------------------------------------
-// Step 2: Fetch newsletter and extract content
+// Step 2: Parse newsletter HTML to extract content
 // ---------------------------------------------------------------------------
 
-async function parseNewsletter(url) {
-  console.log(`Fetching newsletter: ${url}`);
-  const html = await fetch(url);
+function parseNewsletter(html) {
   const $ = cheerio.load(html);
 
   const sections = [];
 
-  // Mailchimp newsletters typically use <h1>–<h4> for section headings
-  // and <p>, <ul>/<li> for content. We walk through the body content.
   const contentSelectors = [
     'td.mcnTextContent',         // Classic Mailchimp templates
     '.templateContainer',         // Newer templates
@@ -189,7 +230,6 @@ async function parseNewsletter(url) {
 
       const text = $sib.text().trim();
       if (text) {
-        // Check if it's a list
         if (tagName === 'UL' || tagName === 'OL') {
           $sib.find('li').each((___, li) => {
             const liText = $(li).text().trim();
@@ -268,7 +308,7 @@ async function getModeratorEmail() {
   }
 
   // Find the plan closest to the upcoming Sunday
-  let targetPlan = plans.data[0]; // Default to first upcoming plan
+  let targetPlan = plans.data[0];
   for (const plan of plans.data) {
     const planDate = plan.attributes.sort_date || plan.attributes.dates;
     if (planDate && planDate.startsWith(dateStr)) {
@@ -307,7 +347,6 @@ async function getModeratorEmail() {
     teamMembers.data.forEach((m) => {
       console.log(`  - ${m.attributes.name}: ${m.attributes.team_position_name}`);
     });
-    // Fall back to first team member or CC_EMAIL
     console.log('Falling back to CC_EMAIL as recipient.');
     return CC_EMAIL || GMAIL_USER;
   }
@@ -324,7 +363,6 @@ async function getModeratorEmail() {
     { headers }
   );
 
-  // Try the services people endpoint first
   let emails;
   try {
     emails = JSON.parse(personRaw);
@@ -379,7 +417,6 @@ function generateAnnouncementsHtml(sections, sundayDate) {
         })
         .join('\n');
 
-      // Wrap bullet items in <ul>
       const hasBullets = s.content.some((c) => c.type === 'bullet');
       const wrappedContent = hasBullets
         ? `<ul style="margin:8px 0 8px 20px;padding:0;">${content}</ul>`
@@ -461,9 +498,11 @@ async function main() {
   const sundayDate = getUpcomingSunday();
   console.log(`Preparing announcements for ${formatDate(sundayDate)}\n`);
 
-  // Step 1 & 2: Fetch and parse newsletter
-  const newsletterUrl = await fetchLatestNewsletterUrl();
-  const sections = await parseNewsletter(newsletterUrl);
+  // Step 1: Fetch campaign HTML via API
+  const campaignHtml = await fetchLatestCampaignHtml();
+
+  // Step 2: Parse newsletter content
+  const sections = parseNewsletter(campaignHtml);
 
   if (sections.length === 0) {
     console.log('Warning: No content sections extracted from newsletter.');

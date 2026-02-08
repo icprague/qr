@@ -28,7 +28,7 @@ jobs:
 
       - name: Generate announcements and send email
         env:
-          MAILCHIMP_ARCHIVE_URL: ${{ secrets.MAILCHIMP_ARCHIVE_URL }}
+          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}

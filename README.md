@@ -10,8 +10,8 @@ A single-page landing page and automated workflow system that replaces the physi
 | `config.json` | Static button URLs (Order of Worship, Give Online, Connect Card) |
 | `newsletter-link.json` | Auto-updated each Tuesday with the latest Mailchimp newsletter URL |
 | `robots.txt` | Blocks all search engine indexing |
-| `scripts/update-newsletter-link.js` | Fetches latest newsletter URL from Mailchimp archive |
-| `scripts/send-announcements.js` | Parses newsletter, looks up moderator in Planning Center, emails announcements |
+| `scripts/update-newsletter-link.js` | Fetches latest newsletter URL via Mailchimp API |
+| `scripts/send-announcements.js` | Fetches newsletter via Mailchimp API, looks up moderator in Planning Center, emails announcements |
 | `.github/workflows/update-newsletter-link.yml` | Tuesday 9 AM (Prague) – updates newsletter link |
 | `.github/workflows/send-announcements.yml` | Friday 4 PM (Prague) – generates and sends announcements email |
 
@@ -61,7 +61,7 @@ Go to your repo → **Settings** → **Secrets and variables** → **Actions** �
 
 | Secret name | What to put | Where to get it |
 |---|---|---|
-| `MAILCHIMP_ARCHIVE_URL` | Your Mailchimp campaign archive page URL | Mailchimp → Campaigns → View Archive → copy the URL |
+| `MAILCHIMP_API_KEY` | Your Mailchimp API key (e.g. `abc123-us7`) | Mailchimp → Account → Extras → [API keys](https://us1.admin.mailchimp.com/account/api/) → Create A Key |
 | `PLANNING_CENTER_APP_ID` | Planning Center API application ID | [Planning Center Developer](https://api.planningcenteronline.com/oauth/applications) → create a Personal Access Token → copy the App ID |
 | `PLANNING_CENTER_SECRET` | Planning Center API secret token | Same as above → copy the Secret |
 | `GMAIL_USER` | Church Gmail address (e.g. `church@gmail.com`) | Your church's Gmail account |
@@ -86,8 +86,8 @@ Both workflows can be triggered manually for testing:
 ### Newsletter Link Update (Tuesdays at 9 AM Prague time)
 
 1. The workflow runs and executes `scripts/update-newsletter-link.js`
-2. The script fetches your Mailchimp campaign archive page
-3. It finds the most recent newsletter link on the page
+2. The script calls the Mailchimp API to get the most recent sent campaign
+3. It reads the campaign's `archive_url` (the direct link to the newsletter)
 4. It writes the URL to `newsletter-link.json`
 5. If the URL changed, it commits and pushes the update
 6. The landing page reads `newsletter-link.json` and updates the "This Week's Newsletter" button
@@ -95,7 +95,7 @@ Both workflows can be triggered manually for testing:
 ### Announcements Email (Fridays at 4 PM Prague time)
 
 1. The workflow runs and executes `scripts/send-announcements.js`
-2. The script fetches the latest newsletter from Mailchimp
+2. The script calls the Mailchimp API to get the latest campaign's HTML content
 3. It parses the HTML to extract headings, paragraphs, and bullet points
 4. It calls the Planning Center API to find who is assigned as moderator for the upcoming Sunday
 5. It generates a styled HTML announcements document
@@ -130,7 +130,8 @@ qr/
 - **Change button URLs**: Edit `config.json` and commit
 - **Change schedule**: Edit the `cron` lines in the workflow YAML files. Use [crontab.guru](https://crontab.guru/) to build cron expressions. Remember the cron times are in **UTC**.
 - **Moderator detection**: The announcements script looks for Planning Center team positions containing: "moderator", "mc", "host", "emcee", or "worship leader". If your church uses different position names, edit the `moderatorKeywords` array in `scripts/send-announcements.js`.
-- **Newsletter parsing**: If Mailchimp changes their HTML structure, you may need to update the CSS selectors in `scripts/send-announcements.js` (the `contentSelectors` and heading-walking logic).
+- **Newsletter parsing**: If Mailchimp changes their email template structure, you may need to update the CSS selectors in `scripts/send-announcements.js` (the `contentSelectors` and heading-walking logic).
+- **Mailchimp API key**: If your key is revoked or rotated, update the `MAILCHIMP_API_KEY` secret. The data center (e.g. `us7`) is extracted automatically from the key.
 
 ---
 
