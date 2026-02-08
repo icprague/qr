@@ -1,0 +1,37 @@
+name: Send Sunday Announcements
+
+on:
+  schedule:
+    # Every Friday at 4:00 PM Prague time (Europe/Prague)
+    # 4 PM CET = 15:00 UTC | 4 PM CEST = 14:00 UTC
+    # We use 14:00 UTC to cover summer time; the script handles the timezone.
+    - cron: '0 14 * * 5'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  send-announcements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate announcements and send email
+        env:
+          MAILCHIMP_ARCHIVE_URL: ${{ secrets.MAILCHIMP_ARCHIVE_URL }}
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          CC_EMAIL: ${{ secrets.CC_EMAIL }}
+        run: node scripts/send-announcements.js
