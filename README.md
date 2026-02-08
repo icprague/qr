@@ -13,7 +13,7 @@ A single-page landing page and automated workflow system that replaces the physi
 | `scripts/update-newsletter-link.js` | Fetches latest newsletter URL via Mailchimp API |
 | `scripts/send-announcements.js` | Fetches newsletter via Mailchimp API, creates Google Doc, looks up moderator, emails link |
 | `scripts/test-announcements.js` | Dry-run version — creates Google Doc and shows Planning Center lookup, no email sent |
-| `scripts/google-docs.js` | Shared module for creating and sharing Google Docs |
+| `scripts/google-docs.js` | Shared module for creating/updating a single reusable Google Doc |
 | `.github/workflows/update-newsletter-link.yml` | Updates newsletter link (schedule disabled — manual only until enabled) |
 | `.github/workflows/send-announcements.yml` | Generates announcements and emails (schedule disabled — manual only until enabled) |
 | `.github/workflows/test-announcements.yml` | Manual-only dry run for testing |
@@ -65,31 +65,122 @@ Go to your repo → **Settings** → **Secrets and variables** → **Actions** �
 | Secret name | What to put | Where to get it |
 |---|---|---|
 | `MAILCHIMP_API_KEY` | Your Mailchimp API key (e.g. `abc123-us7`) | Mailchimp → Account → Extras → [API keys](https://us1.admin.mailchimp.com/account/api/) → Create A Key |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | Full JSON key for Google service account | See "Set up Google service account" below |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | WIF provider resource name | See "Set up Google Cloud (Workload Identity Federation)" below |
+| `GCP_SERVICE_ACCOUNT` | Service account email | Same section below |
 | `PLANNING_CENTER_APP_ID` | Planning Center API application ID | [Planning Center Developer](https://api.planningcenteronline.com/oauth/applications) → create a Personal Access Token → copy the App ID |
 | `PLANNING_CENTER_SECRET` | Planning Center API secret token | Same as above → copy the Secret |
 | `GMAIL_USER` | Church Gmail address (e.g. `church@gmail.com`) | Your church's Gmail account |
 | `GMAIL_APP_PASSWORD` | Gmail app password (NOT your regular password) | Google Account → Security → 2-Step Verification → App passwords → generate one for "Mail" |
 | `CC_EMAIL` | Your email address (for CC on announcements) | Your personal/church email |
+| `GOOGLE_DOC_ID` | (Optional) Reuse a single Google Doc each week | See "Reusable Google Doc" below |
 
 > **Gmail app password**: You must have 2-Step Verification enabled on the Gmail account. Then go to [App Passwords](https://myaccount.google.com/apppasswords), select "Mail" and "Other", and generate a 16-character password.
 
-#### Set up Google service account
+#### Set up Google Cloud (Workload Identity Federation)
 
-The announcements workflow creates a Google Doc (viewable by anyone with the link). This requires a Google Cloud service account:
+This uses **Workload Identity Federation** — no long-lived JSON keys needed. GitHub Actions gets short-lived tokens directly from Google Cloud.
+
+**Step 1: Create a Google Cloud project and enable APIs**
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or use an existing one)
-3. Enable these APIs (search in "APIs & Services" → "Library"):
+2. Create a new project (e.g. `icp-church-automation`)
+3. Note your **Project ID** (e.g. `icp-church-automation`) and **Project Number** (found on the project dashboard)
+4. Enable these APIs in "APIs & Services" → "Library":
    - **Google Docs API**
    - **Google Drive API**
-4. Go to "APIs & Services" → **Credentials** → **Create Credentials** → **Service account**
-5. Give it a name (e.g. `icp-announcements`) and click through
-6. On the service account page, go to **Keys** → **Add Key** → **Create new key** → **JSON**
-7. A `.json` file will download — this is your key
-8. Open the file, copy the **entire contents**, and paste it as the value of the `GOOGLE_SERVICE_ACCOUNT_KEY` secret in GitHub
+   - **IAM Service Account Credentials API**
+
+**Step 2: Create a service account**
+
+1. Go to "IAM & Admin" → **Service Accounts** → **Create Service Account**
+2. Name: `icp-announcements`
+3. Click **Done** (no need to grant project-level roles)
+4. Note the **service account email** — it looks like: `icp-announcements@YOUR_PROJECT_ID.iam.gserviceaccount.com`
+
+**Step 3: Create a Workload Identity Pool**
+
+Run these commands in [Cloud Shell](https://console.cloud.google.com/cloudshell) (click the `>_` icon in the top bar). Replace `YOUR_PROJECT_ID` with your actual project ID:
+
+```bash
+# Set your project
+gcloud config set project YOUR_PROJECT_ID
+
+# Create the Workload Identity Pool
+gcloud iam workload-identity-pools create "github-pool" \
+  --location="global" \
+  --display-name="GitHub Actions Pool"
+```
+
+**Step 4: Create a Workload Identity Provider (for GitHub)**
+
+Replace `YOUR_GITHUB_ORG` with your GitHub username or org (e.g. `icprague`), and `YOUR_REPO` with the repo name (e.g. `qr`):
+
+```bash
+gcloud iam workload-identity-pools providers create-oidc "github-provider" \
+  --location="global" \
+  --workload-identity-pool="github-pool" \
+  --display-name="GitHub Provider" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --attribute-condition="assertion.repository=='YOUR_GITHUB_ORG/YOUR_REPO'" \
+  --issuer-uri="https://token.actions.githubusercontent.com"
+```
+
+> The `attribute-condition` ensures only your specific repo can authenticate — no other GitHub repo can use this.
+
+**Step 5: Allow the service account to be impersonated**
+
+```bash
+# Get the full pool name
+gcloud iam workload-identity-pools describe "github-pool" \
+  --location="global" \
+  --format="value(name)"
+```
+
+This prints something like: `projects/123456789/locations/global/workloadIdentityPools/github-pool`
+
+Now bind the service account:
+
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  "icp-announcements@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/YOUR_GITHUB_ORG/YOUR_REPO"
+```
+
+**Step 6: Get the provider resource name**
+
+```bash
+gcloud iam workload-identity-pools providers describe "github-provider" \
+  --location="global" \
+  --workload-identity-pool="github-pool" \
+  --format="value(name)"
+```
+
+This prints something like: `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider`
+
+**Step 7: Add secrets to GitHub**
+
+Add these two secrets in your repo → Settings → Secrets → Actions:
+
+| Secret | Value |
+|---|---|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | The full provider name from Step 6 (e.g. `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider`) |
+| `GCP_SERVICE_ACCOUNT` | The service account email (e.g. `icp-announcements@YOUR_PROJECT_ID.iam.gserviceaccount.com`) |
 
 > The service account creates docs in its own Drive. By setting sharing to "anyone with link", anyone can view the doc without needing to be in your organization.
+
+#### Reusable Google Doc (for QR codes)
+
+The announcements are written to a **single Google Doc** that gets overwritten each week, so the URL never changes. This lets you point a QR code at it permanently.
+
+**First run (no `GOOGLE_DOC_ID` set):**
+1. Run the **Test: Preview Announcements** workflow manually
+2. In the workflow logs, find the line: `Doc ID: <some-long-id>`
+3. Add that ID as the `GOOGLE_DOC_ID` secret in your repo
+
+**Every subsequent run:** the same doc is cleared and rewritten with the latest announcements. The URL stays the same — your QR code will always work.
+
+> The permanent doc URL will be: `https://docs.google.com/document/d/YOUR_DOC_ID/edit?usp=sharing`
 
 ### 5. Verify the workflows
 
@@ -118,7 +209,7 @@ Both workflows can be triggered manually for testing:
 1. The workflow runs and executes `scripts/send-announcements.js`
 2. The script calls the Mailchimp API to get the latest campaign's HTML content
 3. It parses the HTML to extract headings, paragraphs, and bullet points
-4. It creates a Google Doc with the formatted announcements (shared as "anyone with the link can view")
+4. It overwrites the existing Google Doc with the new announcements (same URL every week — ideal for a permanent QR code)
 5. It calls the Planning Center API to find who is assigned as moderator for the upcoming Sunday
 6. It sends an email with the Google Doc link to the moderator (CC to your email)
 

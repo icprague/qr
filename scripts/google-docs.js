@@ -1,36 +1,32 @@
 /**
  * google-docs.js
  *
- * Helper module for creating a Google Doc from announcements sections
- * and sharing it as "anyone with the link can view".
+ * Helper module for creating/updating a Google Doc with announcements.
+ * Supports reusing a single doc (same URL each week) by passing an
+ * existing doc ID — the content is cleared and rewritten in place.
  *
- * Requires GOOGLE_SERVICE_ACCOUNT_KEY env var (JSON key for a service account
- * with Google Docs API and Google Drive API enabled).
+ * Uses Application Default Credentials (ADC), which are automatically
+ * provided by the google-github-actions/auth workflow step via
+ * Workload Identity Federation.
  */
 
 const { google } = require('googleapis');
 
 /**
- * Authenticate with Google using a service account key.
- * @param {string} keyJson – JSON string of the service account key
- * @returns {google.auth.JWT}
+ * Get auth client using Application Default Credentials.
+ * In GitHub Actions, these are set by google-github-actions/auth.
  */
-function getAuth(keyJson) {
-  const key = JSON.parse(keyJson);
-  return new google.auth.JWT(
-    key.client_email,
-    null,
-    key.private_key,
-    [
+function getAuth() {
+  return new google.auth.GoogleAuth({
+    scopes: [
       'https://www.googleapis.com/auth/documents',
       'https://www.googleapis.com/auth/drive',
-    ]
-  );
+    ],
+  });
 }
 
 /**
  * Build a Google Docs batchUpdate requests array from announcement sections.
- * The Google Docs API inserts text at indices — we build from bottom up.
  *
  * @param {Array} sections – [{ heading, content: [{ type, text }] }]
  * @param {string} title – Document title line
@@ -38,13 +34,9 @@ function getAuth(keyJson) {
  * @returns {Array} requests for docs.documents.batchUpdate
  */
 function buildDocRequests(sections, title, subtitle) {
-  // We'll build the full document as a flat list of insert operations.
-  // Google Docs API inserts at an index, so we insert everything at index 1
-  // in reverse order (last content first).
   const requests = [];
-  let idx = 1; // Start after the initial newline
+  let idx = 1;
 
-  // Helper: insert text and track index
   function insertText(text, bold = false, italic = false, fontSize = 11, color = '#181C3A', alignment = 'START', fontFamily = 'Lato') {
     const endIdx = idx + text.length;
     requests.push({
@@ -112,16 +104,12 @@ function buildDocRequests(sections, title, subtitle) {
       }
     }
 
-    // Blank line between sections
     insertNewline();
   }
 
   return requests;
 }
 
-/**
- * Convert hex color to Google API RGB format (0-1 range).
- */
 function hexToRgb(hex) {
   const h = hex.replace('#', '');
   return {
@@ -132,30 +120,74 @@ function hexToRgb(hex) {
 }
 
 /**
- * Create a Google Doc with announcements content and share it publicly.
+ * Create or update a Google Doc with announcements content.
  *
- * @param {string} keyJson – GOOGLE_SERVICE_ACCOUNT_KEY env var
+ * If `existingDocId` is provided, the existing doc is cleared and rewritten
+ * (keeping the same URL — ideal for a permanent QR code).
+ * If not, a new doc is created and shared publicly.
+ *
  * @param {Array} sections – Parsed newsletter sections
  * @param {string} title – "SUNDAY ANNOUNCEMENTS"
  * @param {string} subtitle – Formatted date string
  * @param {string} docTitle – Document title (shown in Google Drive)
+ * @param {string} [existingDocId] – If set, reuse this doc instead of creating a new one
  * @returns {{ docUrl: string, docId: string }}
  */
-async function createAnnouncementsDoc(keyJson, sections, title, subtitle, docTitle) {
-  const auth = getAuth(keyJson);
+async function createAnnouncementsDoc(sections, title, subtitle, docTitle, existingDocId) {
+  const auth = getAuth();
 
   const docs = google.docs({ version: 'v1', auth });
   const drive = google.drive({ version: 'v3', auth });
 
-  // 1. Create an empty document
-  console.log('  Creating Google Doc...');
-  const createRes = await docs.documents.create({
-    requestBody: { title: docTitle },
-  });
-  const docId = createRes.data.documentId;
-  console.log(`  Doc ID: ${docId}`);
+  let docId;
 
-  // 2. Insert formatted content
+  if (existingDocId) {
+    // --- Reuse existing doc ---
+    docId = existingDocId;
+    console.log(`  Reusing existing Google Doc: ${docId}`);
+
+    // Get current doc to find content length
+    const doc = await docs.documents.get({ documentId: docId });
+    const endIndex = doc.data.body.content.reduce(
+      (max, el) => Math.max(max, el.endIndex || 0),
+      0
+    );
+
+    // Clear all content (index 1 to end - 1; index 0 is reserved)
+    if (endIndex > 2) {
+      await docs.documents.batchUpdate({
+        documentId: docId,
+        requestBody: {
+          requests: [{ deleteContentRange: { range: { startIndex: 1, endIndex: endIndex - 1 } } }],
+        },
+      });
+    }
+
+    // Update the document title
+    await drive.files.update({
+      fileId: docId,
+      requestBody: { name: docTitle },
+    });
+
+    console.log('  Cleared existing content.');
+  } else {
+    // --- Create new doc ---
+    console.log('  Creating new Google Doc...');
+    const createRes = await docs.documents.create({
+      requestBody: { title: docTitle },
+    });
+    docId = createRes.data.documentId;
+    console.log(`  Doc ID: ${docId}`);
+
+    // Share as "anyone with the link can view"
+    console.log('  Setting sharing to "anyone with link"...');
+    await drive.permissions.create({
+      fileId: docId,
+      requestBody: { role: 'reader', type: 'anyone' },
+    });
+  }
+
+  // Insert formatted content
   console.log('  Writing content...');
   const requests = buildDocRequests(sections, title, subtitle);
   if (requests.length > 0) {
@@ -164,16 +196,6 @@ async function createAnnouncementsDoc(keyJson, sections, title, subtitle, docTit
       requestBody: { requests },
     });
   }
-
-  // 3. Share as "anyone with the link can view"
-  console.log('  Setting sharing to "anyone with link"...');
-  await drive.permissions.create({
-    fileId: docId,
-    requestBody: {
-      role: 'reader',
-      type: 'anyone',
-    },
-  });
 
   const docUrl = `https://docs.google.com/document/d/${docId}/edit?usp=sharing`;
   console.log(`  Public URL: ${docUrl}`);

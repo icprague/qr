@@ -9,12 +9,15 @@
  *
  * Environment variables (set as GitHub Secrets):
  *   MAILCHIMP_API_KEY            – Mailchimp API key (e.g. abc123def456-us7)
- *   GOOGLE_SERVICE_ACCOUNT_KEY   – JSON key for Google service account
  *   PLANNING_CENTER_APP_ID       – Planning Center API application ID
  *   PLANNING_CENTER_SECRET       – Planning Center API secret
  *   GMAIL_USER                   – Gmail address used to send email
  *   GMAIL_APP_PASSWORD           – Gmail app password
  *   CC_EMAIL                     – Email address to CC on announcements
+ *   GOOGLE_DOC_ID                – (optional) Reuse this doc instead of creating a new one
+ *
+ * Google auth is handled via Workload Identity Federation (ADC) —
+ * the google-github-actions/auth step sets GOOGLE_APPLICATION_CREDENTIALS.
  */
 
 const https = require('https');
@@ -29,7 +32,6 @@ const { createAnnouncementsDoc } = require('./google-docs');
 
 const REQUIRED_ENV = [
   'MAILCHIMP_API_KEY',
-  'GOOGLE_SERVICE_ACCOUNT_KEY',
   'PLANNING_CENTER_APP_ID',
   'PLANNING_CENTER_SECRET',
   'GMAIL_USER',
@@ -45,7 +47,6 @@ for (const key of REQUIRED_ENV) {
 
 const {
   MAILCHIMP_API_KEY,
-  GOOGLE_SERVICE_ACCOUNT_KEY,
   PLANNING_CENTER_APP_ID,
   PLANNING_CENTER_SECRET,
   GMAIL_USER,
@@ -311,15 +312,15 @@ async function main() {
     console.log('Warning: No content sections extracted from newsletter.');
   }
 
-  // Step 3: Create Google Doc
-  console.log('=== CREATING GOOGLE DOC ===');
+  // Step 3: Create / update Google Doc
+  console.log('=== UPDATING GOOGLE DOC ===');
   const docTitle = `Sunday Announcements – ${formatDateShort(sundayDate)}`;
   const { docUrl } = await createAnnouncementsDoc(
-    GOOGLE_SERVICE_ACCOUNT_KEY,
     sections,
     'SUNDAY ANNOUNCEMENTS',
     formatDate(sundayDate),
-    docTitle
+    docTitle,
+    process.env.GOOGLE_DOC_ID
   );
   console.log('');
 

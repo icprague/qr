@@ -10,9 +10,11 @@
  *
  * Environment variables:
  *   MAILCHIMP_API_KEY            – Mailchimp API key
- *   GOOGLE_SERVICE_ACCOUNT_KEY   – JSON key for Google service account
  *   PLANNING_CENTER_APP_ID       – Planning Center API application ID
  *   PLANNING_CENTER_SECRET       – Planning Center API secret
+ *   GOOGLE_DOC_ID                – (optional) Reuse this doc instead of creating a new one
+ *
+ * Google auth is handled via Workload Identity Federation (ADC).
  */
 
 const https = require('https');
@@ -26,7 +28,6 @@ const { createAnnouncementsDoc } = require('./google-docs');
 
 const REQUIRED_ENV = [
   'MAILCHIMP_API_KEY',
-  'GOOGLE_SERVICE_ACCOUNT_KEY',
   'PLANNING_CENTER_APP_ID',
   'PLANNING_CENTER_SECRET',
 ];
@@ -40,7 +41,6 @@ for (const key of REQUIRED_ENV) {
 
 const {
   MAILCHIMP_API_KEY,
-  GOOGLE_SERVICE_ACCOUNT_KEY,
   PLANNING_CENTER_APP_ID,
   PLANNING_CENTER_SECRET,
 } = process.env;
@@ -292,18 +292,22 @@ async function main() {
     });
   });
 
-  // --- Test 2: Create Google Doc ---
-  console.log('\n=== CREATING GOOGLE DOC ===');
+  // --- Test 2: Create / update Google Doc ---
+  console.log('\n=== UPDATING GOOGLE DOC ===');
   const docTitle = `[TEST] Sunday Announcements – ${formatDateShort(sundayDate)}`;
+  const existingDocId = process.env.GOOGLE_DOC_ID;
   const { docUrl, docId } = await createAnnouncementsDoc(
-    GOOGLE_SERVICE_ACCOUNT_KEY,
     sections,
     'SUNDAY ANNOUNCEMENTS',
     formatDate(sundayDate),
-    docTitle
+    docTitle,
+    existingDocId
   );
   console.log(`\n  >> Open this link to preview: ${docUrl}`);
   console.log(`  >> Doc ID: ${docId}`);
+  if (!existingDocId) {
+    console.log(`  >> Save this Doc ID as the GOOGLE_DOC_ID secret to reuse it each week`);
+  }
   console.log('  >> Anyone with the link can view it\n');
 
   // --- Test 3: Planning Center moderator lookup ---
