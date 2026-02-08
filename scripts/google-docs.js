@@ -1,13 +1,12 @@
 /**
  * google-docs.js
  *
- * Helper module for creating/updating a Google Doc with announcements.
- * Supports reusing a single doc (same URL each week) by passing an
- * existing doc ID — the content is cleared and rewritten in place.
+ * Helper module for updating a Google Doc with announcements content.
+ * Requires a pre-created Google Doc shared with the service account as Editor.
+ * The doc content is cleared and rewritten each week, keeping the same URL.
  *
  * Uses an access token from the google-github-actions/auth workflow step
- * (GOOGLE_ACCESS_TOKEN env var), obtained via Workload Identity Federation
- * with explicit Docs + Drive scopes.
+ * (GOOGLE_ACCESS_TOKEN env var), obtained via Workload Identity Federation.
  */
 
 const { google } = require('googleapis');
@@ -120,74 +119,45 @@ function hexToRgb(hex) {
 }
 
 /**
- * Create or update a Google Doc with announcements content.
+ * Update an existing Google Doc with announcements content.
+ * The doc must be pre-created and shared with the service account as Editor.
  *
- * If `existingDocId` is provided, the existing doc is cleared and rewritten
- * (keeping the same URL — ideal for a permanent QR code).
- * If not, a new doc is created and shared publicly.
- *
+ * @param {string} docId – The Google Doc ID (from GOOGLE_DOC_ID secret)
  * @param {Array} sections – Parsed newsletter sections
  * @param {string} title – "SUNDAY ANNOUNCEMENTS"
  * @param {string} subtitle – Formatted date string
- * @param {string} docTitle – Document title (shown in Google Drive)
- * @param {string} [existingDocId] – If set, reuse this doc instead of creating a new one
  * @returns {{ docUrl: string, docId: string }}
  */
-async function createAnnouncementsDoc(sections, title, subtitle, docTitle, existingDocId) {
-  const auth = getAuth();
-
-  const docs = google.docs({ version: 'v1', auth });
-  const drive = google.drive({ version: 'v3', auth });
-
-  let docId;
-
-  if (existingDocId) {
-    // --- Reuse existing doc ---
-    docId = existingDocId;
-    console.log(`  Reusing existing Google Doc: ${docId}`);
-
-    // Get current doc to find content length
-    const doc = await docs.documents.get({ documentId: docId });
-    const endIndex = doc.data.body.content.reduce(
-      (max, el) => Math.max(max, el.endIndex || 0),
-      0
+async function updateAnnouncementsDoc(docId, sections, title, subtitle) {
+  if (!docId) {
+    throw new Error(
+      'GOOGLE_DOC_ID is required. Create a Google Doc manually, share it with the service account as Editor, and add the doc ID as a GitHub secret.'
     );
-
-    // Clear all content (index 1 to end - 1; index 0 is reserved)
-    if (endIndex > 2) {
-      await docs.documents.batchUpdate({
-        documentId: docId,
-        requestBody: {
-          requests: [{ deleteContentRange: { range: { startIndex: 1, endIndex: endIndex - 1 } } }],
-        },
-      });
-    }
-
-    // Update the document title
-    await drive.files.update({
-      fileId: docId,
-      requestBody: { name: docTitle },
-    });
-
-    console.log('  Cleared existing content.');
-  } else {
-    // --- Create new doc ---
-    console.log('  Creating new Google Doc...');
-    const createRes = await docs.documents.create({
-      requestBody: { title: docTitle },
-    });
-    docId = createRes.data.documentId;
-    console.log(`  Doc ID: ${docId}`);
-
-    // Share as "anyone with the link can view"
-    console.log('  Setting sharing to "anyone with link"...');
-    await drive.permissions.create({
-      fileId: docId,
-      requestBody: { role: 'reader', type: 'anyone' },
-    });
   }
 
-  // Insert formatted content
+  const auth = getAuth();
+  const docs = google.docs({ version: 'v1', auth });
+
+  // 1. Get current doc to find content length
+  console.log(`  Updating Google Doc: ${docId}`);
+  const doc = await docs.documents.get({ documentId: docId });
+  const endIndex = doc.data.body.content.reduce(
+    (max, el) => Math.max(max, el.endIndex || 0),
+    0
+  );
+
+  // 2. Clear all content (index 1 to end - 1; index 0 is reserved)
+  if (endIndex > 2) {
+    await docs.documents.batchUpdate({
+      documentId: docId,
+      requestBody: {
+        requests: [{ deleteContentRange: { range: { startIndex: 1, endIndex: endIndex - 1 } } }],
+      },
+    });
+    console.log('  Cleared existing content.');
+  }
+
+  // 3. Insert formatted content
   console.log('  Writing content...');
   const requests = buildDocRequests(sections, title, subtitle);
   if (requests.length > 0) {
@@ -203,4 +173,4 @@ async function createAnnouncementsDoc(sections, title, subtitle, docTitle, exist
   return { docUrl, docId };
 }
 
-module.exports = { createAnnouncementsDoc };
+module.exports = { updateAnnouncementsDoc };

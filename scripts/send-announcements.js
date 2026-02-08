@@ -24,7 +24,7 @@ const https = require('https');
 const http = require('http');
 const nodemailer = require('nodemailer');
 const cheerio = require('cheerio');
-const { createAnnouncementsDoc } = require('./google-docs');
+const { updateAnnouncementsDoc } = require('./google-docs');
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -312,15 +312,13 @@ async function main() {
     console.log('Warning: No content sections extracted from newsletter.');
   }
 
-  // Step 3: Create / update Google Doc
+  // Step 3: Update Google Doc
   console.log('=== UPDATING GOOGLE DOC ===');
-  const docTitle = `Sunday Announcements – ${formatDateShort(sundayDate)}`;
-  const { docUrl } = await createAnnouncementsDoc(
+  const { docUrl } = await updateAnnouncementsDoc(
+    process.env.GOOGLE_DOC_ID,
     sections,
     'SUNDAY ANNOUNCEMENTS',
-    formatDate(sundayDate),
-    docTitle,
-    process.env.GOOGLE_DOC_ID
+    formatDate(sundayDate)
   );
   console.log('');
 

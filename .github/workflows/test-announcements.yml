@@ -21,7 +21,7 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           token_format: 'access_token'
-          access_token_scopes: 'https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/drive'
+          access_token_scopes: 'https://www.googleapis.com/auth/documents'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

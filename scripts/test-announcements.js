@@ -20,7 +20,7 @@
 const https = require('https');
 const http = require('http');
 const cheerio = require('cheerio');
-const { createAnnouncementsDoc } = require('./google-docs');
+const { updateAnnouncementsDoc } = require('./google-docs');
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -292,23 +292,17 @@ async function main() {
     });
   });
 
-  // --- Test 2: Create / update Google Doc ---
+  // --- Test 2: Update Google Doc ---
   console.log('\n=== UPDATING GOOGLE DOC ===');
-  const docTitle = `[TEST] Sunday Announcements – ${formatDateShort(sundayDate)}`;
-  const existingDocId = process.env.GOOGLE_DOC_ID;
-  const { docUrl, docId } = await createAnnouncementsDoc(
+  const { docUrl, docId } = await updateAnnouncementsDoc(
+    process.env.GOOGLE_DOC_ID,
     sections,
     'SUNDAY ANNOUNCEMENTS',
-    formatDate(sundayDate),
-    docTitle,
-    existingDocId
+    formatDate(sundayDate)
   );
   console.log(`\n  >> Open this link to preview: ${docUrl}`);
   console.log(`  >> Doc ID: ${docId}`);
-  if (!existingDocId) {
-    console.log(`  >> Save this Doc ID as the GOOGLE_DOC_ID secret to reuse it each week`);
-  }
-  console.log('  >> Anyone with the link can view it\n');
+  console.log('  >> Anyone with the link can view/edit it\n');
 
   // --- Test 3: Planning Center moderator lookup ---
   try {
