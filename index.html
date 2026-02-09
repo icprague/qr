@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
   <meta name="robots" content="noindex, nofollow">
   <title>International Church of Prague – Sunday Service</title>
+
+  <!-- Google Analytics 4 -->
+  <!-- Replace G-XXXXXXXXXX with your actual GA4 Measurement ID -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Raleway:wght@600&display=swap" rel="stylesheet">
@@ -106,9 +117,6 @@
 
   <script>
     (function () {
-      // Static links — replace the # placeholders with your actual URLs
-      // Or edit config.json and they will be loaded automatically.
-
       var CONFIG_PATH = 'config.json';
       var NEWSLETTER_PATH = 'newsletter-link.json';
 
@@ -144,6 +152,26 @@
         };
         xhr.send();
       }
+
+      // Track button clicks via GA4
+      var buttons = {
+        'btn-worship':    'order_of_worship',
+        'btn-give':       'giving',
+        'btn-newsletter': 'newsletter',
+        'btn-connect':    'connect_card'
+      };
+      Object.keys(buttons).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('click', function () {
+            if (typeof gtag === 'function') {
+              gtag('event', 'button_click', {
+                button_name: buttons[id]
+              });
+            }
+          });
+        }
+      });
 
       fetchJSON(CONFIG_PATH, applyConfig);
       fetchJSON(NEWSLETTER_PATH, applyNewsletter);

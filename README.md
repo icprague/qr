@@ -1,185 +1,164 @@
 # International Church of Prague – Sunday Service Hub
 
-A single-page landing page and automated workflow system that replaces the physical bulletin and automates weekly announcements.
+A landing page and automation system for ICP's Sunday services. Replaces the printed bulletin with a QR-code-friendly page, and automates the weekly preparation of announcements.
 
-## What's in this repo
+## What it does
 
-| File/Folder | Purpose |
+**Landing page** (`index.html`) — A mobile-first page with four buttons:
+
+- **Order of Worship** — links to the current Sunday's service plan on Planning Center
+- **Giving** — links to the church's giving page on icprague.cz
+- **This Week's Newsletter** — links to the latest Mailchimp newsletter (updated automatically)
+- **Connect Card** — links to the visitor connect form on Planning Center
+
+**Automated workflows** (GitHub Actions):
+
+- **Update Newsletter Link** — fetches the latest sent campaign from Mailchimp and saves its archive URL so the landing page always points to the current newsletter
+- **Send Announcements** — fetches the newsletter HTML from Mailchimp, parses it into sections, writes them to a Google Doc, looks up the service moderator in Planning Center, and emails them the link
+
+## Analytics
+
+The landing page includes Google Analytics 4 tracking. It records page views and tracks which buttons visitors click (`order_of_worship`, `giving`, `newsletter`, `connect_card`).
+
+To distinguish where scans come from, use UTM parameters on your QR codes:
+
+| QR code location | URL |
 |---|---|
-| `index.html` | Landing page with 4 buttons (Order of Worship, Give Online, Newsletter, Connect Card) |
-| `config.json` | Static button URLs (Order of Worship, Give Online, Connect Card) |
-| `newsletter-link.json` | Auto-updated each Tuesday with the latest Mailchimp newsletter URL |
-| `robots.txt` | Blocks all search engine indexing |
-| `scripts/update-newsletter-link.js` | Fetches latest newsletter URL via Mailchimp API |
-| `scripts/send-announcements.js` | Fetches newsletter via Mailchimp API, creates Google Doc, looks up moderator, emails link |
-| `scripts/test-announcements.js` | Dry-run version — creates Google Doc and shows Planning Center lookup, no email sent |
-| `scripts/google-docs.js` | Shared module for creating/updating a single reusable Google Doc |
-| `.github/workflows/update-newsletter-link.yml` | Updates newsletter link (schedule disabled — manual only until enabled) |
-| `.github/workflows/send-announcements.yml` | Generates announcements and emails (schedule disabled — manual only until enabled) |
-| `.github/workflows/test-announcements.yml` | Manual-only dry run for testing |
+| Pew cards | `https://sunday.icprague.cz/?utm_source=pew&utm_medium=qr` |
+| Take-home cards | `https://sunday.icprague.cz/?utm_source=takeaway&utm_medium=qr` |
+
+GA4 picks up UTM parameters automatically — no extra code needed.
+
+**Setup**: Create a GA4 property at [analytics.google.com](https://analytics.google.com), copy the Measurement ID (e.g. `G-XXXXXXXXXX`), and replace the placeholder in `index.html`.
 
 ---
 
-## Setup Guide
+## Setup
 
 ### 1. Enable GitHub Pages
 
-1. Go to your repo on GitHub → **Settings** → **Pages**
-2. Under **Source**, select **Deploy from a branch**
-3. Choose the branch `main` (or whichever branch you deploy from) and folder `/ (root)`
-4. Click **Save**
-5. Your site will be live at `https://<username>.github.io/<repo-name>/`
+1. Go to **Settings** → **Pages**
+2. Set source to **Deploy from a branch**, select `main`, folder `/ (root)`
+3. The site will be live at `https://<username>.github.io/<repo>/`
 
-### 2. Set up a custom domain (Squarespace DNS)
+### 2. Custom domain
 
-To use a custom domain like `sunday.yourchurch.com`:
+To serve the page at `sunday.icprague.cz`:
 
-1. In GitHub → **Settings** → **Pages** → **Custom domain**, enter your domain (e.g. `sunday.yourchurch.com`) and save
-2. In your Squarespace DNS settings, add a **CNAME record**:
-   - **Host**: `sunday` (or whatever subdomain you want)
-   - **Type**: CNAME
-   - **Value**: `<username>.github.io`
-3. Wait for DNS to propagate (can be up to 48 hours, usually much faster)
-4. Back in GitHub Pages settings, check **Enforce HTTPS**
+1. In GitHub → **Settings** → **Pages** → **Custom domain**, enter `sunday.icprague.cz`
+2. In your DNS settings, add a **CNAME record**: `sunday` → `<username>.github.io`
+3. Wait for DNS propagation, then enable **Enforce HTTPS** in GitHub Pages settings
 
-> If using an apex domain (e.g. `yourchurch.com`), you'll need A records instead. See [GitHub's docs on apex domains](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site#configuring-an-apex-domain).
+### 3. Button URLs
 
-### 3. Configure button URLs
-
-Edit **`config.json`** in the repo root and replace the placeholder URLs:
+Edit `config.json` to set the three static button URLs:
 
 ```json
 {
-  "orderOfWorshipUrl": "https://services.planningcenteronline.com/...",
-  "giveOnlineUrl": "https://your-giving-page.com/...",
-  "connectCardUrl": "https://your-connect-card.com/..."
+  "orderOfWorshipUrl": "https://icp.churchcenter.com/services/...",
+  "giveOnlineUrl": "https://www.icprague.cz/supporting-icp",
+  "connectCardUrl": "https://icp.churchcenter.com/people/forms/..."
 }
 ```
 
-These are loaded by the landing page at runtime, so changes take effect as soon as you commit.
+The newsletter URL is managed automatically by the Update Newsletter Link workflow.
 
-### 4. Add GitHub Secrets
+### 4. GitHub Secrets
 
-Go to your repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** and add each of these:
+Go to **Settings** → **Secrets and variables** → **Actions** and add:
 
-| Secret name | What to put | Where to get it |
-|---|---|---|
-| `MAILCHIMP_API_KEY` | Your Mailchimp API key (e.g. `abc123-us7`) | Mailchimp → Account → Extras → [API keys](https://us1.admin.mailchimp.com/account/api/) → Create A Key |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | WIF provider resource name | See "Set up Google Cloud (Workload Identity Federation)" below |
-| `GCP_SERVICE_ACCOUNT` | Service account email | Same section below |
-| `PLANNING_CENTER_APP_ID` | Planning Center API application ID | [Planning Center Developer](https://api.planningcenteronline.com/oauth/applications) → create a Personal Access Token → copy the App ID |
-| `PLANNING_CENTER_SECRET` | Planning Center API secret token | Same as above → copy the Secret |
-| `GMAIL_USER` | Church Gmail address (e.g. `church@gmail.com`) | Your church's Gmail account |
-| `GMAIL_APP_PASSWORD` | Gmail app password (NOT your regular password) | Google Account → Security → 2-Step Verification → App passwords → generate one for "Mail" |
-| `CC_EMAIL` | Your email address (for CC on announcements) | Your personal/church email |
-| `GOOGLE_DOC_ID` | Google Doc ID for announcements | See "Set up Google Doc" below |
+| Secret | What it is |
+|---|---|
+| `MAILCHIMP_API_KEY` | Mailchimp API key (e.g. `abc123-us7`). The data center suffix is extracted automatically. |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Federation provider resource name (see Google Cloud setup below) |
+| `GCP_SERVICE_ACCOUNT` | GCP service account email (e.g. `announcements@your-project.iam.gserviceaccount.com`) |
+| `PLANNING_CENTER_APP_ID` | Personal Access Token app ID from [Planning Center Developer](https://api.planningcenteronline.com/oauth/applications) |
+| `PLANNING_CENTER_SECRET` | Personal Access Token secret from the same page |
+| `GMAIL_USER` | Gmail address used to send the announcements email |
+| `GMAIL_APP_PASSWORD` | Gmail app password (requires 2FA enabled — generate at [App Passwords](https://myaccount.google.com/apppasswords)) |
+| `CC_EMAIL` | Email address to CC on announcements emails |
+| `GOOGLE_DOC_ID` | ID of the Google Doc used for announcements (see below) |
 
-> **Gmail app password**: You must have 2-Step Verification enabled on the Gmail account. Then go to [App Passwords](https://myaccount.google.com/apppasswords), select "Mail" and "Other", and generate a 16-character password.
+### 5. Google Cloud (Workload Identity Federation)
 
-#### Set up Google Cloud (Workload Identity Federation)
+The announcements workflow authenticates to Google Docs via Workload Identity Federation — no long-lived JSON key files.
 
-The announcements workflow needs access to edit a Google Doc. This uses **Workload Identity Federation** (WIF) — no long-lived JSON keys needed.
+You need:
+- A GCP project with the **Google Docs API** enabled
+- A **service account** with Docs edit permissions
+- A **Workload Identity Pool and Provider** linked to your GitHub repo
 
-You should already have a Google Cloud project with:
-- **Google Docs API** enabled
-- A **service account** (e.g. `announcements@YOUR_PROJECT_ID.iam.gserviceaccount.com`)
-- A **Workload Identity Pool + Provider** linked to your GitHub repo
-- `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` secrets set in GitHub
+See the [google-github-actions/auth docs](https://github.com/google-github-actions/auth#workload-identity-federation-through-a-service-account) for setup instructions.
 
-If you haven't set these up yet, see the [Google guide for WIF with GitHub Actions](https://github.com/google-github-actions/auth#workload-identity-federation-through-a-service-account).
+### 6. Google Doc
 
-#### Set up Google Doc (for QR codes)
+The announcements are written to a single Google Doc that gets overwritten each week. The URL never changes, so it works as a permanent QR code target.
 
-The announcements are written to a **single Google Doc** that gets overwritten each week, so the URL never changes. This is perfect for a permanent QR code. Multiple people can also have edit access.
+1. Create a new blank Google Doc
+2. Share it with your service account email as **Editor**
+3. Set general access to **Anyone with the link → Viewer**
+4. Copy the doc ID from the URL (the string between `/d/` and `/edit`)
+5. Add it as the `GOOGLE_DOC_ID` secret
 
-1. Go to [docs.google.com](https://docs.google.com) and create a new blank document
-2. Name it whatever you like (e.g. "Sunday Announcements")
-3. Click **Share** and add your **service account email** (e.g. `announcements@project-e65cf4b1-d33a-42d1-9ce.iam.gserviceaccount.com`) as **Editor**
-4. Also add anyone else who needs edit access
-5. Set "General access" to **Anyone with the link** → **Viewer** (so the congregation can read it)
-6. Copy the **doc ID** from the URL — it's the long string between `/d/` and `/edit`:
-   ```
-   https://docs.google.com/document/d/THIS_IS_THE_DOC_ID/edit
-   ```
-7. Add it as the `GOOGLE_DOC_ID` secret in your repo
+### 7. Test the workflows
 
-> The permanent URL for your QR code: `https://docs.google.com/document/d/YOUR_DOC_ID/edit?usp=sharing`
+All workflows can be triggered manually:
 
-### 5. Verify the workflows
-
-Both workflows can be triggered manually for testing:
-
-1. Go to your repo → **Actions** tab
-2. Click on **Update Newsletter Link** or **Send Sunday Announcements**
-3. Click **Run workflow** → **Run workflow**
-4. Check the run logs for any errors
+1. Go to **Actions** → select the workflow → **Run workflow**
+2. The **Test: Preview Announcements** workflow is a dry run that updates the Google Doc and logs the Planning Center lookup, but does not send email
 
 ---
 
 ## How the automations work
 
-### Newsletter Link Update (Tuesdays at 9 AM Prague time)
+### Newsletter link update
 
-1. The workflow runs and executes `scripts/update-newsletter-link.js`
-2. The script calls the Mailchimp API to get the most recent sent campaign
-3. It reads the campaign's `archive_url` (the direct link to the newsletter)
-4. It writes the URL to `newsletter-link.json`
-5. If the URL changed, it commits and pushes the update
-6. The landing page reads `newsletter-link.json` and updates the "This Week's Newsletter" button
+Runs on Tuesdays (schedule disabled by default — trigger manually or uncomment the cron in the workflow file).
 
-### Announcements Email (Fridays at 4 PM Prague time)
+1. Calls the Mailchimp API to get the most recently sent campaign
+2. Extracts the campaign's `archive_url` (the public link to the newsletter)
+3. Writes it to `newsletter-link.json` and commits if changed
+4. The landing page reads this file at load time and updates the newsletter button
 
-1. The workflow runs and executes `scripts/send-announcements.js`
-2. The script calls the Mailchimp API to get the latest campaign's HTML content
-3. It parses the HTML to extract headings, paragraphs, and bullet points
-4. It clears and rewrites the Google Doc with the new announcements (same URL every week — ideal for a permanent QR code)
-5. It calls the Planning Center API to find who is assigned as moderator for the upcoming Sunday
-6. It sends an email with the Google Doc link to the moderator (CC to your email)
+### Announcements email
+
+Runs on Fridays (schedule disabled by default).
+
+1. Calls the Mailchimp API to get the latest campaign's full HTML
+2. Parses the HTML to extract headings (h1–h3), paragraphs, and bullet points, stopping at the "Offering Report" section and filtering out footer content
+3. Clears the Google Doc and rewrites it with the extracted content
+4. Calls the Planning Center API to find the upcoming Sunday's service plan
+5. Looks through the plan's team members for someone in a moderator-type position
+6. Sends an email to that person with the Google Doc link (CC to `CC_EMAIL`)
+
+If no moderator is found in Planning Center, the email is sent to `CC_EMAIL` as a fallback.
 
 ---
 
-## Folder structure
+## Files
 
 ```
-qr/
-├── .github/
-│   └── workflows/
-│       ├── update-newsletter-link.yml
-│       ├── send-announcements.yml
-│       └── test-announcements.yml
+├── index.html                         Landing page
+├── config.json                        Static button URLs
+├── newsletter-link.json               Latest newsletter URL (auto-updated)
+├── robots.txt                         Blocks search engine indexing
+├── package.json                       Node.js dependencies
 ├── scripts/
-│   ├── update-newsletter-link.js
-│   ├── send-announcements.js
-│   ├── test-announcements.js
-│   └── google-docs.js
-├── .gitignore
-├── config.json
-├── index.html
-├── newsletter-link.json
-├── package.json
-├── robots.txt
-└── README.md
+│   ├── update-newsletter-link.js      Fetches latest newsletter URL from Mailchimp
+│   ├── send-announcements.js          Full pipeline: Mailchimp → parse → Google Doc → Planning Center → email
+│   ├── test-announcements.js          Dry-run version (no email sent)
+│   ├── parse-newsletter.js            HTML parser for Mailchimp newsletter content
+│   └── google-docs.js                 Google Docs API helper (clear and rewrite doc)
+└── .github/workflows/
+    ├── update-newsletter-link.yml     Tuesday newsletter link update
+    ├── send-announcements.yml         Friday announcements pipeline
+    └── test-announcements.yml         Manual dry-run test
 ```
-
----
 
 ## Maintenance
 
-- **Change button URLs**: Edit `config.json` and commit
-- **Enable schedules**: The cron schedules are commented out by default. To enable automatic runs, edit the workflow YAML files and uncomment the `schedule` section. The times are in **UTC** — use [crontab.guru](https://crontab.guru/) to adjust.
-- **Moderator detection**: The announcements script looks for Planning Center team positions containing: "moderator", "mc", "host", "emcee", or "worship leader". If your church uses different position names, edit the `moderatorKeywords` array in `scripts/send-announcements.js`.
-- **Newsletter parsing**: If Mailchimp changes their email template structure, you may need to update the CSS selectors in `scripts/send-announcements.js` (the `contentSelectors` and heading-walking logic).
-- **Mailchimp API key**: If your key is revoked or rotated, update the `MAILCHIMP_API_KEY` secret. The data center (e.g. `us7`) is extracted automatically from the key.
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---|---|
-| Newsletter button shows nothing | Check that `newsletter-link.json` has a valid URL. Run the Update Newsletter workflow manually. |
-| Workflow fails with "secret not set" | Make sure all GitHub Secrets listed above are added correctly. |
-| Gmail send fails | Verify the app password is correct and 2FA is enabled. Check that "Less secure app access" is not needed (app passwords bypass this). |
-| Planning Center lookup fails | Verify your API credentials. Make sure there's an upcoming plan with team members assigned. |
-| Wrong moderator email | Check the position names in Planning Center match the keywords in the script. |
-| Pages site shows 404 | Make sure GitHub Pages is enabled and pointing to the correct branch and folder. |
+- **Change button URLs**: Edit `config.json` and commit. Changes take effect immediately.
+- **Enable scheduled runs**: Uncomment the `schedule` section in the workflow YAML files. Times are in UTC — see the comments in each file for Prague time equivalents.
+- **Moderator lookup**: The script searches Planning Center team positions for keywords like "moderator" or "host". If your position names differ, edit the `moderatorKeywords` array in `scripts/send-announcements.js`.
+- **Newsletter parsing**: If the Mailchimp template structure changes significantly, the content extraction in `scripts/parse-newsletter.js` may need adjustment.
+- **Rotate API keys**: Update the corresponding GitHub secret. No code changes needed.
