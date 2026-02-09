@@ -29,7 +29,7 @@ To distinguish where scans come from, use UTM parameters on your QR codes:
 
 GA4 picks up UTM parameters automatically — no extra code needed.
 
-**Setup**: Create a GA4 property at [analytics.google.com](https://analytics.google.com), copy the Measurement ID (e.g. `G-XXXXXXXXXX`), and replace the placeholder in `index.html`.
+**Setup**: The GA4 Measurement ID (`G-YL2P0BP685`) is already configured in `index.html`.
 
 ---
 
