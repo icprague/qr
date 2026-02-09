@@ -35,7 +35,7 @@
     .heading {
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
-      font-size: 8vw;
+      font-size: clamp(28px, 8vw, 48px);
       color: #181c3a;
       text-align: center;
       margin-bottom: 30px;
@@ -47,26 +47,30 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      transition: background 0.3s ease;
     }
 
     .btn {
       display: block;
       width: 100%;
-      padding: 4vw;
+      padding: max(16px, 4vw);
       margin-bottom: 30px;
       background-color: #222a58;
       color: #f7f9fe;
       font-family: 'Raleway', sans-serif;
       font-weight: 600;
-      font-size: 7vw;
+      font-size: clamp(18px, 5vw, 22px);
       text-align: center;
       text-decoration: none;
       border-radius: 12px;
       border: none;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
       transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
       will-change: transform;
+    }
+
+    .btn:visited {
+      color: #f7f9fe;
     }
 
     .btn:hover {
@@ -75,20 +79,14 @@
       box-shadow: 0 4px 12px rgba(34, 42, 88, 0.3);
     }
 
+    .btn:focus-visible {
+      outline: 3px solid #4d6fff;
+      outline-offset: 3px;
+    }
+
     .btn:active {
       transform: scale(0.98);
       box-shadow: 0 1px 4px rgba(34, 42, 88, 0.2);
-    }
-
-    @media (min-width: 1200px) {
-      .heading {
-        font-size: 48px;
-      }
-
-      .btn {
-        font-size: 22px;
-        padding: 24px;
-      }
     }
   </style>
 </head>
