@@ -65,11 +65,19 @@
       border-radius: 12px;
       border: none;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      will-change: transform;
     }
 
     .btn:hover {
       background-color: #2d3570;
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(34, 42, 88, 0.3);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+      box-shadow: 0 1px 4px rgba(34, 42, 88, 0.2);
     }
 
     @media (min-width: 1200px) {
