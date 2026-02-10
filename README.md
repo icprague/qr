@@ -120,6 +120,7 @@ All workflows can be triggered manually from **Actions** → select the workflow
 |---|---|
 | **Test: Send Editors Email** | Sends the editors email with the current Google Doc link. Does NOT re-process the newsletter or update the doc. |
 | **Test: Send Moderator Email** | Sends the moderator email with the current Google Doc link (looks up moderator from Planning Center). Does NOT re-process the newsletter or update the doc. |
+| **Test: Full Announcements Pipeline** | Runs the full Friday pipeline (Mailchimp → parse → Google Doc → editors email) with the same-day check disabled so it works on any day. **This will overwrite the Google Doc.** |
 
 ---
 
@@ -172,8 +173,9 @@ If no moderator is found in Planning Center, the email is sent to `CC_EMAIL` as 
     ├── update-newsletter-link.yml     Friday newsletter link update (disabled)
     ├── send-announcements.yml         Friday editors announcements email (disabled)
     ├── send-moderator-email.yml       Saturday moderator email (disabled)
-    ├── test-editors-email.yml         Manual test: editors email flow
-    └── test-moderator-email.yml       Manual test: moderator email flow
+    ├── test-editors-email.yml         Manual test: editors email only
+    ├── test-moderator-email.yml       Manual test: moderator email only
+    └── test-full-pipeline.yml         Manual test: full pipeline (skips date check)
 ```
 
 ## Maintenance
