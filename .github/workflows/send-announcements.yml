@@ -1,11 +1,12 @@
-name: Send Sunday Announcements
+name: "Send Announcements to Editors (Friday)"
 
 on:
   # Schedule disabled until setup is complete. Uncomment to enable:
   # schedule:
-  #   # Every Friday at 4:00 PM Prague time (Europe/Prague)
-  #   # 4 PM CET = 15:00 UTC | 4 PM CEST = 14:00 UTC
-  #   - cron: '0 14 * * 5'
+  #   # Every Friday at 3:30 PM Prague time (Europe/Prague)
+  #   # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
+  #   # 3:30 PM CET = 14:30 UTC | 3:30 PM CEST = 13:30 UTC
+  #   - cron: '30 13 * * 5'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -36,14 +37,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate announcements and send email
+      - name: Generate announcements and send editors email
         env:
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
-          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
-          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          CC_EMAIL: ${{ secrets.CC_EMAIL }}
+          EDITOR_EMAILS: ${{ secrets.EDITOR_EMAILS }}
+          FAIL_EMAIL: ${{ secrets.FAIL_EMAIL }}
           GOOGLE_DOC_ID: ${{ secrets.GOOGLE_DOC_ID }}
           GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: node scripts/send-announcements.js

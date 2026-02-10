@@ -1,4 +1,4 @@
-name: "Test: Preview Announcements (Dry Run)"
+name: "Test: Full Announcements Pipeline (skips date check)"
 
 on:
   workflow_dispatch: # Manual trigger only
@@ -8,7 +8,7 @@ permissions:
   id-token: write # Required for Workload Identity Federation
 
 jobs:
-  test-announcements:
+  test-full-pipeline:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -31,11 +31,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run dry-run test
+      - name: Run full pipeline (Mailchimp → parse → Google Doc → editors email)
         env:
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
-          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
-          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EDITOR_EMAILS: ${{ secrets.EDITOR_EMAILS }}
+          FAIL_EMAIL: ${{ secrets.FAIL_EMAIL }}
           GOOGLE_DOC_ID: ${{ secrets.GOOGLE_DOC_ID }}
           GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: node scripts/test-announcements.js
+          SKIP_DATE_CHECK: 'true'
+        run: node scripts/send-announcements.js
