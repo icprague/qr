@@ -118,8 +118,8 @@ All workflows can be triggered manually from **Actions** → select the workflow
 
 | Test workflow | What it tests |
 |---|---|
-| **Test: Send Editors Email** | Runs the full Friday pipeline (Mailchimp → parse → Google Doc → editors email). Skips the same-day newsletter check so it works on any day. |
-| **Test: Send Moderator Email** | Runs the Saturday moderator flow (Planning Center lookup → moderator email). |
+| **Test: Send Editors Email** | Sends the editors email with the current Google Doc link. Does NOT re-process the newsletter or update the doc. |
+| **Test: Send Moderator Email** | Sends the moderator email with the current Google Doc link (looks up moderator from Planning Center). Does NOT re-process the newsletter or update the doc. |
 
 ---
 
@@ -164,6 +164,7 @@ If no moderator is found in Planning Center, the email is sent to `CC_EMAIL` as 
 ├── scripts/
 │   ├── update-newsletter-link.js      Fetches latest newsletter URL from Mailchimp (with same-day check)
 │   ├── send-announcements.js          Friday pipeline: Mailchimp → parse → Google Doc → editors email
+│   ├── send-editors-email.js          Send editors email only (no doc reprocessing)
 │   ├── send-moderator-email.js        Saturday pipeline: Planning Center → moderator email
 │   ├── parse-newsletter.js            HTML parser for Mailchimp newsletter content
 │   └── google-docs.js                 Google Docs API helper (clear and rewrite doc)
