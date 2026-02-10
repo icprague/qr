@@ -1,23 +1,26 @@
 /**
  * send-announcements.js
  *
- * 1. Uses Mailchimp API to get the latest sent campaign and its HTML content.
- * 2. Parses the HTML to extract headings and content.
- * 3. Creates a public Google Doc with the announcements.
- * 4. Calls Planning Center API to find the upcoming Sunday moderator's email.
- * 5. Sends an email with the Google Doc link via Gmail SMTP.
+ * Friday step (Step 1 of 2):
+ * 1. Checks that the latest Mailchimp campaign was sent today (Prague time).
+ *    If not, sends a failure/reminder email to FAIL_EMAIL and exits.
+ * 2. Parses the campaign HTML to extract announcement sections.
+ * 3. Updates a Google Doc with the formatted announcements.
+ * 4. Sends an email to the editors group with the Google Doc link for review.
+ *
+ * Step 2 (Saturday) is handled by send-moderator-email.js.
  *
  * Environment variables (set as GitHub Secrets):
- *   MAILCHIMP_API_KEY            – Mailchimp API key (e.g. abc123def456-us7)
- *   PLANNING_CENTER_APP_ID       – Planning Center API application ID
- *   PLANNING_CENTER_SECRET       – Planning Center API secret
- *   GMAIL_USER                   – Gmail address used to send email
- *   GMAIL_APP_PASSWORD           – Gmail app password
- *   CC_EMAIL                     – Email address to CC on announcements
- *   GOOGLE_DOC_ID                – (optional) Reuse this doc instead of creating a new one
+ *   MAILCHIMP_API_KEY  – Mailchimp API key (e.g. abc123def456-us7)
+ *   GMAIL_USER         – Gmail address used to send email
+ *   GMAIL_APP_PASSWORD – Gmail app password
+ *   GOOGLE_DOC_ID      – Google Doc ID to update
+ *   EDITOR_EMAILS      – Comma-separated list of editor email addresses
+ *   FAIL_EMAIL         – Recipient for failure/reminder notifications
+ *   SKIP_DATE_CHECK    – Set to "true" to bypass the same-day check (for testing)
  *
  * Google auth is handled via Workload Identity Federation (ADC) —
- * the google-github-actions/auth step sets GOOGLE_APPLICATION_CREDENTIALS.
+ * the google-github-actions/auth step sets GOOGLE_ACCESS_TOKEN.
  */
 
 const https = require('https');
@@ -32,10 +35,9 @@ const { parseNewsletter } = require('./parse-newsletter');
 
 const REQUIRED_ENV = [
   'MAILCHIMP_API_KEY',
-  'PLANNING_CENTER_APP_ID',
-  'PLANNING_CENTER_SECRET',
   'GMAIL_USER',
   'GMAIL_APP_PASSWORD',
+  'EDITOR_EMAILS',
 ];
 
 for (const key of REQUIRED_ENV) {
@@ -47,13 +49,13 @@ for (const key of REQUIRED_ENV) {
 
 const {
   MAILCHIMP_API_KEY,
-  PLANNING_CENTER_APP_ID,
-  PLANNING_CENTER_SECRET,
   GMAIL_USER,
   GMAIL_APP_PASSWORD,
-  CC_EMAIL,
+  EDITOR_EMAILS,
+  FAIL_EMAIL,
 } = process.env;
 
+const SKIP_DATE_CHECK = process.env.SKIP_DATE_CHECK === 'true';
 const mc_dc = MAILCHIMP_API_KEY.split('-').pop();
 
 // ---------------------------------------------------------------------------
@@ -81,32 +83,6 @@ function mailchimpGet(endpoint) {
   });
 }
 
-function fetch(url, options = {}, redirects = 0) {
-  return new Promise((resolve, reject) => {
-    if (redirects > 5) return reject(new Error('Too many redirects'));
-    const client = url.startsWith('https') ? https : http;
-    const reqOptions = { ...parseUrl(url), ...options };
-    client
-      .get(reqOptions, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          let next = res.headers.location;
-          if (next.startsWith('/')) next = `${reqOptions.protocol}//${reqOptions.hostname}` + next;
-          return resolve(fetch(next, options, redirects + 1));
-        }
-        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
-        const chunks = [];
-        res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-      })
-      .on('error', reject);
-  });
-}
-
-function parseUrl(url) {
-  const u = new URL(url);
-  return { protocol: u.protocol, hostname: u.hostname, port: u.port || (u.protocol === 'https:' ? 443 : 80), path: u.pathname + u.search };
-}
-
 function getUpcomingSunday() {
   const now = new Date();
   const day = now.getDay();
@@ -124,8 +100,20 @@ function formatDateShort(date) {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+/**
+ * Check whether a date string falls on "today" in the Europe/Prague timezone.
+ */
+function isSentToday(sendTimeStr) {
+  const sendDate = new Date(sendTimeStr);
+  const now = new Date();
+  const pragueOpts = { timeZone: 'Europe/Prague', year: 'numeric', month: '2-digit', day: '2-digit' };
+  const sendDatePrague = sendDate.toLocaleDateString('en-CA', pragueOpts);
+  const nowPrague = now.toLocaleDateString('en-CA', pragueOpts);
+  return sendDatePrague === nowPrague;
+}
+
 // ---------------------------------------------------------------------------
-// Step 1: Fetch latest campaign HTML
+// Step 1: Fetch latest campaign HTML + same-day check
 // ---------------------------------------------------------------------------
 
 async function fetchLatestCampaignHtml() {
@@ -134,7 +122,16 @@ async function fetchLatestCampaignHtml() {
   if (!data.campaigns || data.campaigns.length === 0) throw new Error('No sent campaigns found.');
 
   const campaign = data.campaigns[0];
+  const sendTime = campaign.send_time || '';
   console.log(`Latest campaign: "${campaign.settings?.subject_line}" (ID: ${campaign.id})`);
+  console.log(`  Sent: ${sendTime}`);
+
+  // --- Same-day check ---
+  if (!SKIP_DATE_CHECK && sendTime && !isSentToday(sendTime)) {
+    console.error('\nThe latest campaign was NOT sent today.');
+    await sendFailureEmail(campaign.settings?.subject_line || '(no subject)', sendTime);
+    process.exit(1);
+  }
 
   const content = await mailchimpGet(`/campaigns/${campaign.id}/content`);
   if (!content.html) throw new Error('Campaign has no HTML content.');
@@ -143,80 +140,49 @@ async function fetchLatestCampaignHtml() {
 }
 
 // ---------------------------------------------------------------------------
-// Step 3: Get moderator email from Planning Center
+// Failure email
 // ---------------------------------------------------------------------------
 
-async function getModeratorEmail() {
-  const sunday = getUpcomingSunday();
-  const dateStr = sunday.toISOString().split('T')[0];
-  const authHeader = 'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
-  const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
-
-  console.log(`Looking up Planning Center service plans around ${dateStr}...`);
-
-  const serviceTypesRaw = await fetch('https://api.planningcenteronline.com/services/v2/service_types', { headers });
-  const serviceTypes = JSON.parse(serviceTypesRaw);
-  if (!serviceTypes.data || serviceTypes.data.length === 0) throw new Error('No service types found.');
-  const serviceTypeId = serviceTypes.data[0].id;
-  console.log(`Using service type: ${serviceTypes.data[0].attributes.name} (${serviceTypeId})`);
-
-  const plansRaw = await fetch(`https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=future&per_page=5`, { headers });
-  const plans = JSON.parse(plansRaw);
-  if (!plans.data || plans.data.length === 0) throw new Error('No upcoming plans found.');
-
-  let targetPlan = plans.data[0];
-  for (const plan of plans.data) {
-    const planDate = plan.attributes.sort_date || plan.attributes.dates;
-    if (planDate && planDate.startsWith(dateStr)) { targetPlan = plan; break; }
-  }
-  console.log(`Using plan: ${targetPlan.attributes.dates} (ID: ${targetPlan.id})`);
-
-  const teamMembersRaw = await fetch(`https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`, { headers });
-  const teamMembers = JSON.parse(teamMembersRaw);
-  if (!teamMembers.data || teamMembers.data.length === 0) throw new Error('No team members found.');
-
-  const moderatorKeywords = ['moderator', 'mc', 'host', 'emcee', 'worship leader'];
-  let moderator = null;
-  for (const member of teamMembers.data) {
-    const position = (member.attributes.team_position_name || '').toLowerCase();
-    if (moderatorKeywords.some((kw) => position.includes(kw))) { moderator = member; break; }
+async function sendFailureEmail(campaignSubject, campaignSendTime) {
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD || !FAIL_EMAIL) {
+    console.error('Cannot send failure email: GMAIL_USER, GMAIL_APP_PASSWORD, or FAIL_EMAIL is not set.');
+    return;
   }
 
-  if (!moderator) {
-    console.log('No moderator role found. Available positions:');
-    teamMembers.data.forEach((m) => console.log(`  - ${m.attributes.name}: ${m.attributes.team_position_name}`));
-    console.log('Falling back to CC_EMAIL as recipient.');
-    return CC_EMAIL || GMAIL_USER;
-  }
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+  });
 
-  const personId = moderator.relationships?.person?.data?.id;
-  if (!personId) { console.log('No person ID for moderator. Falling back to CC_EMAIL.'); return CC_EMAIL || GMAIL_USER; }
+  const html = `
+    <p>The <strong>Send Announcements</strong> script ran but no newsletter was sent today.</p>
+    <p>The most recent campaign found:</p>
+    <ul>
+      <li><strong>Subject:</strong> ${campaignSubject}</li>
+      <li><strong>Sent:</strong> ${campaignSendTime}</li>
+    </ul>
+    <p>Please send the newsletter and then run the announcements workflow manually.</p>
+    <p style="color:#999;font-size:12px;">Auto-generated by ICP Church Automation</p>
+  `;
 
-  // Try services people endpoint
-  try {
-    const personRaw = await fetch(`https://api.planningcenteronline.com/services/v2/people/${personId}/emails`, { headers });
-    const emails = JSON.parse(personRaw);
-    if (emails.data?.length > 0) { const e = emails.data[0].attributes.address; console.log(`Found moderator: ${moderator.attributes.name} (${e})`); return e; }
-  } catch {}
+  await transporter.sendMail({
+    from: `"ICP Church Automation" <${GMAIL_USER}>`,
+    to: FAIL_EMAIL,
+    subject: 'Reminder: Newsletter not sent yet – run announcements workflow manually',
+    html,
+  });
 
-  // Try people endpoint
-  try {
-    const peopleEmailRaw = await fetch(`https://api.planningcenteronline.com/people/v2/people/${personId}/emails`, { headers });
-    const peopleEmails = JSON.parse(peopleEmailRaw);
-    if (peopleEmails.data?.length > 0) { const e = peopleEmails.data[0].attributes.address; console.log(`Found moderator: ${moderator.attributes.name} (${e})`); return e; }
-  } catch (err) { console.log(`People API lookup failed: ${err.message}`); }
-
-  console.log('Could not find email for moderator. Falling back to CC_EMAIL.');
-  return CC_EMAIL || GMAIL_USER;
+  console.log(`Failure/reminder email sent to ${FAIL_EMAIL}`);
 }
 
 // ---------------------------------------------------------------------------
-// Step 4: Send email with Google Doc link
+// Step 3: Send editors email with Google Doc link
 // ---------------------------------------------------------------------------
 
-async function sendEmail(recipientEmail, docUrl, sundayDate) {
+async function sendEditorsEmail(docUrl, sundayDate) {
   const dateStr = formatDateShort(sundayDate);
-  const subject = `Sunday Announcements Ready – ${dateStr}`;
+  const subject = `Sunday Announcements Draft Ready for Review – ${dateStr}`;
+  const editors = EDITOR_EMAILS.split(',').map((e) => e.trim()).filter(Boolean);
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -225,25 +191,23 @@ async function sendEmail(recipientEmail, docUrl, sundayDate) {
 
   const html = `
     <p>Hi,</p>
-    <p>The Sunday announcements for <strong>${dateStr}</strong> are ready.</p>
-    <p><a href="${docUrl}" style="display:inline-block;padding:12px 24px;background:#222a58;color:#f7f9fe;text-decoration:none;border-radius:8px;font-family:sans-serif;">View Announcements</a></p>
-    <p>This document is viewable by anyone with the link.</p>
+    <p>The Sunday announcements draft for <strong>${dateStr}</strong> has been updated and is ready for review.</p>
+    <p><a href="${docUrl}" style="display:inline-block;padding:12px 24px;background:#222a58;color:#f7f9fe;text-decoration:none;border-radius:8px;font-family:sans-serif;">Review Announcements</a></p>
+    <p>Please review and make any necessary edits before the document is sent to the moderator.</p>
     <p style="color:#999;font-size:12px;">Auto-generated by ICP Church Automation</p>
   `;
 
   const mailOptions = {
     from: `"International Church of Prague" <${GMAIL_USER}>`,
-    to: recipientEmail,
-    cc: CC_EMAIL || undefined,
+    to: editors.join(', '),
     subject,
     html,
   };
 
-  console.log(`Sending email to: ${recipientEmail}`);
-  if (CC_EMAIL) console.log(`CC: ${CC_EMAIL}`);
+  console.log(`Sending editors email to: ${editors.join(', ')}`);
 
   const info = await transporter.sendMail(mailOptions);
-  console.log(`Email sent successfully. Message ID: ${info.messageId}`);
+  console.log(`Editors email sent successfully. Message ID: ${info.messageId}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -254,7 +218,7 @@ async function main() {
   const sundayDate = getUpcomingSunday();
   console.log(`Preparing announcements for ${formatDate(sundayDate)}\n`);
 
-  // Step 1 & 2: Fetch and parse newsletter
+  // Step 1 & 2: Fetch and parse newsletter (includes same-day check)
   const campaignHtml = await fetchLatestCampaignHtml();
   const sections = parseNewsletter(campaignHtml);
 
@@ -272,20 +236,10 @@ async function main() {
   );
   console.log('');
 
-  // Step 4: Get moderator email
-  let moderatorEmail;
-  try {
-    moderatorEmail = await getModeratorEmail();
-  } catch (err) {
-    console.error(`Planning Center lookup failed: ${err.message}`);
-    moderatorEmail = CC_EMAIL || GMAIL_USER;
-  }
-  console.log('');
+  // Step 4: Send email to editors
+  await sendEditorsEmail(docUrl, sundayDate);
 
-  // Step 5: Send email with link
-  await sendEmail(moderatorEmail, docUrl, sundayDate);
-
-  console.log('\nDone!');
+  console.log('\nDone! Editors have been notified. Moderator email will be sent separately.');
 }
 
 main().catch((err) => {

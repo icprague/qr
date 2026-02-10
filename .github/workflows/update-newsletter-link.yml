@@ -3,10 +3,10 @@ name: Update Newsletter Link
 on:
   # Schedule disabled until setup is complete. Uncomment to enable:
   # schedule:
-  #   # Every Tuesday at 9:00 AM Prague time (Europe/Prague)
+  #   # Every Friday at 3:30 PM Prague time (Europe/Prague)
   #   # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
-  #   # 9 AM CET = 8:00 UTC | 9 AM CEST = 7:00 UTC
-  #   - cron: '0 7 * * 2'
+  #   # 3:30 PM CET = 14:30 UTC | 3:30 PM CEST = 13:30 UTC
+  #   - cron: '30 13 * * 5'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -30,6 +30,9 @@ jobs:
       - name: Fetch latest newsletter link
         env:
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          FAIL_EMAIL: ${{ secrets.FAIL_EMAIL }}
         run: node scripts/update-newsletter-link.js
 
       - name: Commit and push if changed
