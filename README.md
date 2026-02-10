@@ -109,8 +109,8 @@ The announcements are written to a single Google Doc that gets overwritten each 
 All automated emails are sent from the `GMAIL_USER` address via Gmail SMTP. This is a regular Gmail account (not the GCP service account). The GCP service account is only used for Google Docs API access.
 
 Emails appear as:
-- **Editors/moderator emails**: `"International Church of Prague" <your-gmail@gmail.com>`
-- **Failure notifications**: `"ICP Church Automation" <your-gmail@gmail.com>`
+- **Editors/moderator emails**: `"ICP Sunday Announcements" <your-gmail@gmail.com>`
+- **Failure notifications**: `"ICP Automation" <your-gmail@gmail.com>`
 
 ### 8. Test the workflows
 
