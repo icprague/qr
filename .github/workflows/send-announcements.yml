@@ -46,4 +46,6 @@ jobs:
           FAIL_EMAIL: ${{ secrets.FAIL_EMAIL }}
           GOOGLE_DOC_ID: ${{ secrets.GOOGLE_DOC_ID }}
           GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
         run: node scripts/send-announcements.js

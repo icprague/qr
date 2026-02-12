@@ -11,13 +11,15 @@
  * Step 2 (Saturday) is handled by send-moderator-email.js.
  *
  * Environment variables (set as GitHub Secrets):
- *   MAILCHIMP_API_KEY  – Mailchimp API key (e.g. abc123def456-us7)
- *   GMAIL_USER         – Gmail address used to send email
- *   GMAIL_APP_PASSWORD – Gmail app password
- *   GOOGLE_DOC_ID      – Google Doc ID to update
- *   EDITOR_EMAILS      – Comma-separated list of editor email addresses
- *   FAIL_EMAIL         – Recipient for failure/reminder notifications
- *   SKIP_DATE_CHECK    – Set to "true" to bypass the same-day check (for testing)
+ *   MAILCHIMP_API_KEY       – Mailchimp API key (e.g. abc123def456-us7)
+ *   GMAIL_USER              – Gmail address used to send email
+ *   GMAIL_APP_PASSWORD      – Gmail app password
+ *   GOOGLE_DOC_ID           – Google Doc ID to update
+ *   EDITOR_EMAILS           – Comma-separated list of editor email addresses
+ *   FAIL_EMAIL              – Recipient for failure/reminder notifications
+ *   SKIP_DATE_CHECK         – Set to "true" to bypass the same-day check (for testing)
+ *   PLANNING_CENTER_APP_ID  – (Optional) Planning Center API application ID
+ *   PLANNING_CENTER_SECRET  – (Optional) Planning Center API secret
  *
  * Google auth is handled via Workload Identity Federation (ADC) —
  * the google-github-actions/auth step sets GOOGLE_ACCESS_TOKEN.
@@ -28,6 +30,7 @@ const http = require('http');
 const nodemailer = require('nodemailer');
 const { updateAnnouncementsDoc } = require('./google-docs');
 const { parseNewsletter } = require('./parse-newsletter');
+const { getModeratorInfo } = require('./planning-center');
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -176,6 +179,56 @@ async function sendFailureEmail(campaignSubject, campaignSendTime) {
 }
 
 // ---------------------------------------------------------------------------
+// Moderator section HTML builders
+// ---------------------------------------------------------------------------
+
+function buildModeratorInfoHtml(moderatorInfo) {
+  if (!moderatorInfo) {
+    return '';
+  }
+
+  if (!moderatorInfo.found) {
+    return `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr>
+        <td style="background:#fdf0f3;padding:16px 20px;border-left:4px solid #6b1624;border-radius:8px;font-family:sans-serif;">
+          <p style="margin:0 0 8px;font-size:15px;font-weight:bold;color:#6b1624;text-transform:uppercase;letter-spacing:0.5px;">Warning: No Moderator Scheduled</p>
+          <p style="margin:0;font-size:14px;color:#4a0f1a;line-height:1.5;">No moderator has been scheduled in Planning Center for this Sunday. Please assign a moderator as soon as possible so they can receive the announcements on Saturday morning.</p>
+        </td>
+      </tr>
+    </table>`;
+  }
+
+  const nameRow = moderatorInfo.name
+    ? `<tr>
+        <td style="padding:3px 12px 3px 0;color:#666;font-size:14px;vertical-align:top;">Name:</td>
+        <td style="padding:3px 0;font-size:14px;"><strong>${moderatorInfo.name}</strong></td>
+      </tr>`
+    : '';
+
+  const emailRow = moderatorInfo.email
+    ? `<tr>
+        <td style="padding:3px 12px 3px 0;color:#666;font-size:14px;vertical-align:top;">Email:</td>
+        <td style="padding:3px 0;font-size:14px;"><strong>${moderatorInfo.email}</strong></td>
+      </tr>`
+    : '';
+
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr>
+        <td style="background:#f0f2f8;padding:16px 20px;border-left:4px solid #222a58;border-radius:8px;font-family:sans-serif;">
+          <p style="margin:0 0 10px;font-size:15px;font-weight:bold;color:#222a58;">Moderator Details</p>
+          <table cellpadding="0" cellspacing="0" border="0" style="color:#333;">
+            ${nameRow}
+            ${emailRow}
+          </table>
+          <p style="margin:12px 0 0;font-size:13px;color:#666;line-height:1.4;">The announcements will be emailed to the moderator on <strong>Saturday at 8:00 AM</strong> (Prague time).</p>
+        </td>
+      </tr>
+    </table>`;
+}
+
+// ---------------------------------------------------------------------------
 // Step 3: Send editors email with Google Doc link
 // ---------------------------------------------------------------------------
 
@@ -183,6 +236,16 @@ async function sendEditorsEmail(docUrl, sundayDate) {
   const dateStr = formatDateShort(sundayDate);
   const subject = `Sunday Announcements Draft Ready for Review – ${dateStr}`;
   const editors = EDITOR_EMAILS.split(',').map((e) => e.trim()).filter(Boolean);
+
+  // Look up moderator info (optional – gracefully degrades if credentials missing)
+  let moderatorInfo = null;
+  try {
+    moderatorInfo = await getModeratorInfo();
+  } catch (err) {
+    console.log(`Planning Center lookup skipped: ${err.message}`);
+  }
+
+  const moderatorHtml = buildModeratorInfoHtml(moderatorInfo);
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -194,6 +257,7 @@ async function sendEditorsEmail(docUrl, sundayDate) {
     <p>The Sunday announcements draft for <strong>${dateStr}</strong> has been updated and is ready for review.</p>
     <p><a href="${docUrl}" style="display:inline-block;padding:12px 24px;background:#222a58;color:#f7f9fe;text-decoration:none;border-radius:8px;font-family:sans-serif;">Review Announcements</a></p>
     <p>Please review and make any necessary edits before the document is sent to the moderator.</p>
+    ${moderatorHtml}
     <p style="color:#999;font-size:12px;">Auto-generated by ICP Automation</p>
   `;
 
