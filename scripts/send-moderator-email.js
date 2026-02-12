@@ -17,9 +17,8 @@
  *   GOOGLE_DOC_ID           – Google Doc ID (used to construct the URL)
  */
 
-const https = require('https');
-const http = require('http');
 const nodemailer = require('nodemailer');
+const { getModeratorInfo } = require('./planning-center');
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -41,8 +40,6 @@ for (const key of REQUIRED_ENV) {
 }
 
 const {
-  PLANNING_CENTER_APP_ID,
-  PLANNING_CENTER_SECRET,
   GMAIL_USER,
   GMAIL_APP_PASSWORD,
   CC_EMAIL,
@@ -52,32 +49,6 @@ const {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function fetch(url, options = {}, redirects = 0) {
-  return new Promise((resolve, reject) => {
-    if (redirects > 5) return reject(new Error('Too many redirects'));
-    const client = url.startsWith('https') ? https : http;
-    const reqOptions = { ...parseUrl(url), ...options };
-    client
-      .get(reqOptions, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          let next = res.headers.location;
-          if (next.startsWith('/')) next = `${reqOptions.protocol}//${reqOptions.hostname}` + next;
-          return resolve(fetch(next, options, redirects + 1));
-        }
-        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
-        const chunks = [];
-        res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-      })
-      .on('error', reject);
-  });
-}
-
-function parseUrl(url) {
-  const u = new URL(url);
-  return { protocol: u.protocol, hostname: u.hostname, port: u.port || (u.protocol === 'https:' ? 443 : 80), path: u.pathname + u.search };
-}
 
 function getUpcomingSunday() {
   const now = new Date();
@@ -94,74 +65,6 @@ function formatDate(date) {
 
 function formatDateShort(date) {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-// ---------------------------------------------------------------------------
-// Get moderator email from Planning Center
-// ---------------------------------------------------------------------------
-
-async function getModeratorEmail() {
-  const sunday = getUpcomingSunday();
-  const dateStr = sunday.toISOString().split('T')[0];
-  const authHeader = 'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
-  const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
-
-  console.log(`Looking up Planning Center service plans around ${dateStr}...`);
-
-  const serviceTypesRaw = await fetch('https://api.planningcenteronline.com/services/v2/service_types', { headers });
-  const serviceTypes = JSON.parse(serviceTypesRaw);
-  if (!serviceTypes.data || serviceTypes.data.length === 0) throw new Error('No service types found.');
-  const serviceTypeId = serviceTypes.data[0].id;
-  console.log(`Using service type: ${serviceTypes.data[0].attributes.name} (${serviceTypeId})`);
-
-  const plansRaw = await fetch(`https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=future&per_page=5`, { headers });
-  const plans = JSON.parse(plansRaw);
-  if (!plans.data || plans.data.length === 0) throw new Error('No upcoming plans found.');
-
-  let targetPlan = plans.data[0];
-  for (const plan of plans.data) {
-    const planDate = plan.attributes.sort_date || plan.attributes.dates;
-    if (planDate && planDate.startsWith(dateStr)) { targetPlan = plan; break; }
-  }
-  console.log(`Using plan: ${targetPlan.attributes.dates} (ID: ${targetPlan.id})`);
-
-  const teamMembersRaw = await fetch(`https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`, { headers });
-  const teamMembers = JSON.parse(teamMembersRaw);
-  if (!teamMembers.data || teamMembers.data.length === 0) throw new Error('No team members found.');
-
-  const moderatorKeywords = ['moderator', 'mc', 'host', 'emcee', 'worship leader'];
-  let moderator = null;
-  for (const member of teamMembers.data) {
-    const position = (member.attributes.team_position_name || '').toLowerCase();
-    if (moderatorKeywords.some((kw) => position.includes(kw))) { moderator = member; break; }
-  }
-
-  if (!moderator) {
-    console.log('No moderator role found. Available positions:');
-    teamMembers.data.forEach((m) => console.log(`  - ${m.attributes.name}: ${m.attributes.team_position_name}`));
-    console.log('Falling back to CC_EMAIL as recipient.');
-    return CC_EMAIL || GMAIL_USER;
-  }
-
-  const personId = moderator.relationships?.person?.data?.id;
-  if (!personId) { console.log('No person ID for moderator. Falling back to CC_EMAIL.'); return CC_EMAIL || GMAIL_USER; }
-
-  // Try services people endpoint
-  try {
-    const personRaw = await fetch(`https://api.planningcenteronline.com/services/v2/people/${personId}/emails`, { headers });
-    const emails = JSON.parse(personRaw);
-    if (emails.data?.length > 0) { const e = emails.data[0].attributes.address; console.log(`Found moderator: ${moderator.attributes.name} (${e})`); return e; }
-  } catch {}
-
-  // Try people endpoint
-  try {
-    const peopleEmailRaw = await fetch(`https://api.planningcenteronline.com/people/v2/people/${personId}/emails`, { headers });
-    const peopleEmails = JSON.parse(peopleEmailRaw);
-    if (peopleEmails.data?.length > 0) { const e = peopleEmails.data[0].attributes.address; console.log(`Found moderator: ${moderator.attributes.name} (${e})`); return e; }
-  } catch (err) { console.log(`People API lookup failed: ${err.message}`); }
-
-  console.log('Could not find email for moderator. Falling back to CC_EMAIL.');
-  return CC_EMAIL || GMAIL_USER;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,10 +114,19 @@ async function main() {
   console.log(`Sending moderator email for ${formatDate(sundayDate)}`);
   console.log(`Google Doc: ${docUrl}\n`);
 
-  // Step 1: Get moderator email
+  // Step 1: Get moderator info
   let moderatorEmail;
   try {
-    moderatorEmail = await getModeratorEmail();
+    const info = await getModeratorInfo();
+    if (info.found && info.email) {
+      moderatorEmail = info.email;
+    } else if (!info.found) {
+      console.log('Falling back to CC_EMAIL as recipient.');
+      moderatorEmail = CC_EMAIL || GMAIL_USER;
+    } else {
+      console.log('No email for moderator. Falling back to CC_EMAIL.');
+      moderatorEmail = CC_EMAIL || GMAIL_USER;
+    }
   } catch (err) {
     console.error(`Planning Center lookup failed: ${err.message}`);
     moderatorEmail = CC_EMAIL || GMAIL_USER;
