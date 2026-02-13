@@ -143,6 +143,9 @@ function buildDocRequests(opts) {
   insertText(subtitle, { italic: true, fontSize: 12, color: '#444444', alignment: 'CENTER' });
   insertNewline();
 
+  // Horizontal rule / spacer
+  insertNewline();
+
   // --- 2. Missionary Prayers -----------------------------------------------
 
   const prayerStartIdx = idx;
@@ -288,7 +291,11 @@ function buildDocRequests(opts) {
       }
     }
 
-    insertNewline();
+    // Only add spacer after sections that have content, so consecutive
+    // headings (e.g. "This Sunday" → sermon series → sermon title) stay tight.
+    if (section.content.length > 0) {
+      insertNewline();
+    }
   }
 
   // --- 5. Regular Reminders ------------------------------------------------
