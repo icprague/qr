@@ -5,21 +5,29 @@
  * 1. Checks that the latest Mailchimp campaign was sent today (Prague time).
  *    If not, sends a failure/reminder email to FAIL_EMAIL and exits.
  * 2. Parses the campaign HTML to extract announcement sections.
- * 3. Updates a Google Doc with the formatted announcements.
- * 4. Sends an email to the editors group with the Google Doc link for review.
+ * 3. Separates missionary prayer sections from weekly announcements.
+ * 4. Fetches regular reminders from a Google Spreadsheet (4-week rotation).
+ * 5. Updates a Google Doc with the structured announcements:
+ *    - Title + date
+ *    - Missionary Prayers (special formatting)
+ *    - Permanent Announcements (from config.js)
+ *    - Weekly Announcements (newsletter minus prayers)
+ *    - Regular Reminders (from spreadsheet)
+ * 6. Sends an email to the editors group with the Google Doc link for review.
  *
  * Step 2 (Saturday) is handled by send-moderator-email.js.
  *
  * Environment variables (set as GitHub Secrets):
- *   MAILCHIMP_API_KEY       – Mailchimp API key (e.g. abc123def456-us7)
- *   GMAIL_USER              – Gmail address used to send email
- *   GMAIL_APP_PASSWORD      – Gmail app password
- *   GOOGLE_DOC_ID           – Google Doc ID to update
- *   EDITOR_EMAILS           – Comma-separated list of editor email addresses
- *   FAIL_EMAIL              – Recipient for failure/reminder notifications
- *   SKIP_DATE_CHECK         – Set to "true" to bypass the same-day check (for testing)
- *   PLANNING_CENTER_APP_ID  – (Optional) Planning Center API application ID
- *   PLANNING_CENTER_SECRET  – (Optional) Planning Center API secret
+ *   MAILCHIMP_API_KEY        – Mailchimp API key (e.g. abc123def456-us7)
+ *   GMAIL_USER               – Gmail address used to send email
+ *   GMAIL_APP_PASSWORD       – Gmail app password
+ *   GOOGLE_DOC_ID            – Google Doc ID to update
+ *   EDITOR_EMAILS            – Comma-separated list of editor email addresses
+ *   FAIL_EMAIL               – Recipient for failure/reminder notifications
+ *   GOOGLE_SPREADSHEET_ID    – (Optional) Google Spreadsheet ID for regular reminders
+ *   SKIP_DATE_CHECK          – Set to "true" to bypass the same-day check (for testing)
+ *   PLANNING_CENTER_APP_ID   – (Optional) Planning Center API application ID
+ *   PLANNING_CENTER_SECRET   – (Optional) Planning Center API secret
  *
  * Google auth is handled via Workload Identity Federation (ADC) —
  * the google-github-actions/auth step sets GOOGLE_ACCESS_TOKEN.
@@ -29,8 +37,16 @@ const https = require('https');
 const http = require('http');
 const nodemailer = require('nodemailer');
 const { updateAnnouncementsDoc } = require('./google-docs');
-const { parseNewsletter } = require('./parse-newsletter');
+const { parseNewsletter, separatePrayerSections } = require('./parse-newsletter');
 const { getModeratorInfo } = require('./planning-center');
+const { fetchRegularReminders } = require('./google-sheets');
+const {
+  MISSIONARY_PRAYER_HEADING_PATTERNS,
+  PERMANENT_ANNOUNCEMENTS,
+  REMINDERS_SHEET_NAME,
+  getSpreadsheetId,
+  getCurrentCycleWeek,
+} = require('./config');
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -229,7 +245,7 @@ function buildModeratorInfoHtml(moderatorInfo) {
 }
 
 // ---------------------------------------------------------------------------
-// Step 3: Send editors email with Google Doc link
+// Step 5: Send editors email with Google Doc link
 // ---------------------------------------------------------------------------
 
 async function sendEditorsEmail(docUrl, sundayDate) {
@@ -284,23 +300,51 @@ async function main() {
 
   // Step 1 & 2: Fetch and parse newsletter (includes same-day check)
   const campaignHtml = await fetchLatestCampaignHtml();
-  const sections = parseNewsletter(campaignHtml);
+  const allSections = parseNewsletter(campaignHtml);
 
-  if (sections.length === 0) {
+  if (allSections.length === 0) {
     console.log('Warning: No content sections extracted from newsletter.');
   }
 
-  // Step 3: Update Google Doc
+  // Step 3: Separate missionary prayers from weekly announcements
+  const { prayerSections, weeklySections } = separatePrayerSections(
+    allSections,
+    MISSIONARY_PRAYER_HEADING_PATTERNS
+  );
+  console.log(`  Prayer sections: ${prayerSections.length}`);
+  console.log(`  Weekly sections: ${weeklySections.length}\n`);
+
+  // Step 4: Fetch regular reminders from Google Spreadsheet
+  console.log('=== FETCHING REGULAR REMINDERS ===');
+  const spreadsheetId = getSpreadsheetId();
+  const cycleWeek = getCurrentCycleWeek(sundayDate);
+  console.log(`  Current 4-week cycle week: ${cycleWeek}`);
+
+  let regularReminders = [];
+  try {
+    regularReminders = await fetchRegularReminders(spreadsheetId, REMINDERS_SHEET_NAME, cycleWeek);
+  } catch (err) {
+    console.log(`  Regular reminders fetch failed: ${err.message}`);
+    console.log('  Continuing without regular reminders.');
+  }
+  console.log('');
+
+  // Step 5: Update Google Doc with all sections
   console.log('=== UPDATING GOOGLE DOC ===');
   const { docUrl } = await updateAnnouncementsDoc(
     process.env.GOOGLE_DOC_ID,
-    sections,
-    'SUNDAY ANNOUNCEMENTS',
-    formatDate(sundayDate)
+    {
+      title: 'Sunday Announcements',
+      subtitle: formatDate(sundayDate),
+      prayerSections,
+      permanentAnnouncements: PERMANENT_ANNOUNCEMENTS,
+      weeklySections,
+      regularReminders,
+    }
   );
   console.log('');
 
-  // Step 4: Send email to editors
+  // Step 6: Send email to editors
   await sendEditorsEmail(docUrl, sundayDate);
 
   console.log('\nDone! Editors have been notified. Moderator email will be sent separately.');

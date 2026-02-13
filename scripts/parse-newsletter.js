@@ -232,4 +232,30 @@ function isFooterContent(text) {
          lowerText.indexOf('in this issue') >= 0;
 }
 
-module.exports = { parseNewsletter };
+/**
+ * Separate missionary prayer sections from the rest of the newsletter sections.
+ *
+ * @param {Array} sections – All parsed sections from parseNewsletter()
+ * @param {Array<string>} patterns – Heading prefixes to match (case-insensitive)
+ * @returns {{ prayerSections: Array, weeklySections: Array }}
+ */
+function separatePrayerSections(sections, patterns) {
+  const prayerSections = [];
+  const weeklySections = [];
+
+  for (const section of sections) {
+    const heading = (section.heading || '').trim();
+    const isPrayer = patterns.some((pattern) =>
+      heading.toLowerCase().startsWith(pattern.toLowerCase())
+    );
+    if (isPrayer) {
+      prayerSections.push(section);
+    } else {
+      weeklySections.push(section);
+    }
+  }
+
+  return { prayerSections, weeklySections };
+}
+
+module.exports = { parseNewsletter, separatePrayerSections };
