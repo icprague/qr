@@ -225,6 +225,7 @@ function buildDocRequests(opts) {
     fontFamily: 'Raleway',
   });
   insertNewline();
+  insertNewline();
 
   for (const ann of permanentAnnouncements) {
     if (ann.heading) {
@@ -232,6 +233,7 @@ function buildDocRequests(opts) {
         bold: true,
         fontSize: 12,
         color: '#222A58',
+        alignment: 'CENTER',
         fontFamily: 'Raleway',
       });
       insertNewline();
@@ -258,6 +260,7 @@ function buildDocRequests(opts) {
     alignment: 'CENTER',
     fontFamily: 'Raleway',
   });
+  insertNewline();
   insertNewline();
 
   for (const section of weeklySections) {
@@ -288,7 +291,11 @@ function buildDocRequests(opts) {
       }
     }
 
-    insertNewline();
+    // Only add spacer after sections that have content, so consecutive
+    // headings (e.g. "This Sunday" → sermon series → sermon title) stay tight.
+    if (section.content.length > 0) {
+      insertNewline();
+    }
   }
 
   // --- 5. Regular Reminders ------------------------------------------------
@@ -300,6 +307,7 @@ function buildDocRequests(opts) {
     alignment: 'CENTER',
     fontFamily: 'Raleway',
   });
+  insertNewline();
   insertNewline();
 
   if (regularReminders.length === 0) {
@@ -316,6 +324,7 @@ function buildDocRequests(opts) {
           bold: true,
           fontSize: 12,
           color: '#222A58',
+          alignment: 'CENTER',
           fontFamily: 'Raleway',
         });
         insertNewline();
