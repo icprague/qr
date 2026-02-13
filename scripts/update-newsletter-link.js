@@ -127,7 +127,7 @@ async function main() {
   }
 
   const campaign = data.campaigns[0];
-  const archiveUrl = campaign.archive_url;
+  const archiveUrl = campaign.long_archive_url || campaign.archive_url;
   const subject = campaign.settings?.subject_line || '(no subject)';
   const sendTime = campaign.send_time || '';
 
