@@ -150,7 +150,7 @@ function buildDocRequests(opts) {
 
   const prayerStartIdx = idx;
 
-  insertText('INCLUDE IN PRAYERS THIS WEEK', {
+  insertText('INCLUDE IN PRAYER THIS WEEK', {
     bold: true,
     fontSize: 14,
     color: '#222a58',
@@ -210,7 +210,7 @@ function buildDocRequests(opts) {
   const prayerEndIdx = idx;
 
   // Apply background color to the entire prayer section
-  applyParagraphBackground(prayerStartIdx, prayerEndIdx, '#e2e3f3');
+  applyParagraphBackground(prayerStartIdx, prayerEndIdx, '#F1F2F9');
 
   // Spacer after prayer section
   insertNewline();
@@ -220,7 +220,7 @@ function buildDocRequests(opts) {
   insertText('PERMANENT ANNOUNCEMENTS', {
     bold: true,
     fontSize: 14,
-    color: '#222A58',
+    color: '#6b1624',
     alignment: 'CENTER',
     fontFamily: 'Raleway',
   });
@@ -256,7 +256,7 @@ function buildDocRequests(opts) {
   insertText('WEEKLY ANNOUNCEMENTS', {
     bold: true,
     fontSize: 14,
-    color: '#222A58',
+    color: '#6b1624',
     alignment: 'CENTER',
     fontFamily: 'Raleway',
   });
@@ -303,7 +303,7 @@ function buildDocRequests(opts) {
   insertText('REGULAR REMINDERS', {
     bold: true,
     fontSize: 14,
-    color: '#222A58',
+    color: '#6b1624',
     alignment: 'CENTER',
     fontFamily: 'Raleway',
   });
