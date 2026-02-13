@@ -143,9 +143,6 @@ function buildDocRequests(opts) {
   insertText(subtitle, { italic: true, fontSize: 12, color: '#444444', alignment: 'CENTER' });
   insertNewline();
 
-  // Horizontal rule / spacer
-  insertNewline();
-
   // --- 2. Missionary Prayers -----------------------------------------------
 
   const prayerStartIdx = idx;
@@ -225,6 +222,7 @@ function buildDocRequests(opts) {
     fontFamily: 'Raleway',
   });
   insertNewline();
+  insertNewline();
 
   for (const ann of permanentAnnouncements) {
     if (ann.heading) {
@@ -232,6 +230,7 @@ function buildDocRequests(opts) {
         bold: true,
         fontSize: 12,
         color: '#222A58',
+        alignment: 'CENTER',
         fontFamily: 'Raleway',
       });
       insertNewline();
@@ -258,6 +257,7 @@ function buildDocRequests(opts) {
     alignment: 'CENTER',
     fontFamily: 'Raleway',
   });
+  insertNewline();
   insertNewline();
 
   for (const section of weeklySections) {
@@ -301,6 +301,7 @@ function buildDocRequests(opts) {
     fontFamily: 'Raleway',
   });
   insertNewline();
+  insertNewline();
 
   if (regularReminders.length === 0) {
     insertText('No regular reminders this week', {
@@ -316,6 +317,7 @@ function buildDocRequests(opts) {
           bold: true,
           fontSize: 12,
           color: '#222A58',
+          alignment: 'CENTER',
           fontFamily: 'Raleway',
         });
         insertNewline();
