@@ -33,12 +33,12 @@ const MISSIONARY_PRAYER_HEADING_PATTERNS = [
  */
 const PERMANENT_ANNOUNCEMENTS = [
   {
-    heading: 'Stay Connected',
-    text: 'Sign up for our weekly newsletter at icprague.cz to stay informed about church events, prayer requests, and community news.',
+    heading: 'How to Sign Up for the Newsletter',
+    text: '(add text)',
   },
   {
     heading: 'QR Code',
-    text: 'Scan the QR code on the pew cards or take-home cards to access the order of worship, giving page, newsletter, and connect card on your phone.',
+    text: '(add text)',
   },
 ];
 
