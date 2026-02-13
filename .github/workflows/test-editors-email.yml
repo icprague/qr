@@ -3,12 +3,25 @@ name: "Test: Send Editors Email"
 on:
   workflow_dispatch: # Manual trigger only
 
+permissions:
+  contents: read
+  id-token: write # Required for Workload Identity Federation
+
 jobs:
   test-editors-email:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          token_format: 'access_token'
+          access_token_scopes: 'https://www.googleapis.com/auth/spreadsheets.readonly'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,4 +39,6 @@ jobs:
           GOOGLE_DOC_ID: ${{ secrets.GOOGLE_DOC_ID }}
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+          GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
         run: node scripts/send-editors-email.js

@@ -205,7 +205,7 @@ async function main() {
   const mailOptions = {
     from: `"ICP Sunday Announcements" <${GMAIL_USER}>`,
     to: editors.join(', '),
-    subject: `Sunday Announcements Draft Ready for Review – ${dateStr}`,
+    subject: `[TEST] Sunday Announcements Draft Ready for Review – ${dateStr}`,
     html,
   };
 
