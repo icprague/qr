@@ -260,7 +260,7 @@ function buildRemindersInfoHtml(regularReminders, spreadsheetId) {
   return `
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
       <tr>
-        <td style="background:#D3EFBD;padding:16px 20px;border-left:4px solid #5a9a3a;border-radius:8px;font-family:sans-serif;">
+        <td style="background:#E9F7DE;padding:16px 20px;border-left:4px solid #5a9a3a;border-radius:8px;font-family:sans-serif;">
           <p style="margin:0;font-size:15px;font-weight:bold;color:#3a6b24;">Regular Reminders</p>
           ${remindersList}
           <p style="margin:10px 0 0;font-size:13px;color:#666;line-height:1.4;">These are sourced from the <a href="${spreadsheetUrl}" style="color:#222a58;">regular reminders spreadsheet</a>, which rotates announcements on a 4-week cycle.</p>
