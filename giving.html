@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Supporting ICP – International Church of Prague</title>
+
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-YL2P0BP685"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-YL2P0BP685');
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Raleway:wght@600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      padding: 20px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .logo {
+      width: 50%;
+      max-width: 300px;
+      margin-bottom: 24px;
+      display: block;
+    }
+
+    .heading {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: clamp(28px, 8vw, 48px);
+      color: #181c3a;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .buttons {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: max(16px, 4vw);
+      margin-bottom: 30px;
+      background-color: #222a58;
+      color: #f7f9fe;
+      font-family: 'Raleway', sans-serif;
+      font-weight: 600;
+      font-size: clamp(22px, 7vw, 28px);
+      text-align: center;
+      text-decoration: none;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      will-change: transform;
+    }
+
+    .btn:visited {
+      color: #f7f9fe;
+    }
+
+    .btn:hover {
+      background-color: #2d3570;
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(34, 42, 88, 0.3);
+    }
+
+    .btn:focus-visible {
+      outline: 3px solid #4d6fff;
+      outline-offset: 3px;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+      box-shadow: 0 1px 4px rgba(34, 42, 88, 0.2);
+    }
+
+    .btn-label {
+      flex: 1;
+      text-align: center;
+    }
+
+    .payment-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .payment-icons svg {
+      height: clamp(20px, 5vw, 26px);
+      width: auto;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body>
+  <img
+    src="https://lh3.googleusercontent.com/d/1-XOxQXAiq2ws_-VB-FSksD5qKa4fQDSQ"
+    alt="International Church of Prague"
+    class="logo"
+  >
+  <h1 class="heading">SUPPORTING ICP</h1>
+  <div class="buttons">
+
+    <a id="btn-czk" class="btn" href="czech-bank.html">
+      <span class="btn-label">Czech Bank Transfer (CZK)</span>
+    </a>
+
+    <a id="btn-usd" class="btn" href="https://giving.myamplify.io//app/giving/idp" target="_blank" rel="noopener">
+      <span class="btn-label">International / Card (USD)</span>
+      <span class="payment-icons" aria-hidden="true">
+        <!-- Credit Card -->
+        <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Credit card">
+          <rect x="1" y="1" width="36" height="22" rx="4" stroke="#f7f9fe" stroke-width="1.5" fill="none"/>
+          <rect x="1" y="7" width="36" height="5" fill="#f7f9fe" opacity="0.4"/>
+          <rect x="5" y="15" width="8" height="3" rx="1" fill="#f7f9fe" opacity="0.7"/>
+          <rect x="16" y="15" width="6" height="3" rx="1" fill="#f7f9fe" opacity="0.5"/>
+        </svg>
+        <!-- Apple Pay -->
+        <svg viewBox="0 0 56 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Apple Pay">
+          <text x="0" y="18" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="600" font-size="14" fill="#f7f9fe" letter-spacing="-0.3">&#xF8FF; Pay</text>
+        </svg>
+        <!-- Google Pay -->
+        <svg viewBox="0 0 56 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Google Pay">
+          <text x="0" y="18" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="600" font-size="14" fill="#f7f9fe" letter-spacing="-0.3">G Pay</text>
+        </svg>
+      </span>
+    </a>
+
+  </div>
+
+  <script>
+    (function () {
+      var buttons = {
+        'btn-czk': 'giving_czk',
+        'btn-usd': 'giving_usd'
+      };
+      Object.keys(buttons).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('click', function () {
+            if (typeof gtag === 'function') {
+              gtag('event', 'button_click', { button_name: buttons[id] });
+            }
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
