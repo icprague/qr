@@ -37,16 +37,16 @@
     }
 
     .logo {
-      width: 50%;
-      max-width: 300px;
-      margin-bottom: 24px;
+      width: 35%;
+      max-width: 200px;
+      margin-bottom: 16px;
       display: block;
     }
 
     .heading {
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
-      font-size: clamp(24px, 7vw, 40px);
+      font-size: clamp(18px, 5vw, 28px);
       color: #181c3a;
       text-align: center;
       margin-bottom: 12px;
@@ -127,6 +127,25 @@
       color: #222a58 !important;
     }
 
+    .copy-btn {
+      margin-left: 10px;
+      padding: 3px 10px;
+      font-family: 'Raleway', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      background: #222a58;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      vertical-align: middle;
+      transition: background-color 0.2s ease;
+    }
+
+    .copy-btn.copied {
+      background: #2e7d32;
+    }
+
     .back-link {
       display: inline-flex;
       align-items: center;
@@ -173,20 +192,11 @@
   <div class="bank-details">
     <table>
       <tr>
-        <td>Account</td>
-        <td>178324272/0300</td>
-      </tr>
-      <tr>
-        <td>Account name</td>
-        <td>Sbor Církve Bratrské<br>International Church of Prague</td>
-      </tr>
-      <tr>
-        <td>IBAN</td>
-        <td>CZ45 0300 0000 0001 7832 4272</td>
-      </tr>
-      <tr>
-        <td>SWIFT</td>
-        <td>CEKOCZPP</td>
+        <td>Account number</td>
+        <td>
+          <span id="acct-number">178324272/0300</span>
+          <button id="copy-btn" class="copy-btn" aria-label="Copy account number">Copy</button>
+        </td>
       </tr>
       <tr>
         <td>Variabilní symbol</td>
@@ -200,6 +210,21 @@
   <script>
     if (typeof gtag === 'function') {
       gtag('event', 'page_view', { page_title: 'Czech Bank Transfer' });
+    }
+
+    var copyBtn = document.getElementById('copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var text = document.getElementById('acct-number').textContent;
+        navigator.clipboard.writeText(text).then(function () {
+          copyBtn.textContent = '✓ Copied';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = 'Copy';
+            copyBtn.classList.remove('copied');
+          }, 2000);
+        });
+      });
     }
   </script>
 </body>
