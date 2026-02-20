@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Czech Bank Transfer – International Church of Prague</title>
+
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-YL2P0BP685"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-YL2P0BP685');
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- QR code generator library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      padding: 20px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .logo {
+      width: 50%;
+      max-width: 300px;
+      margin-bottom: 24px;
+      display: block;
+    }
+
+    .heading {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: clamp(24px, 7vw, 40px);
+      color: #181c3a;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .note {
+      font-family: 'Raleway', sans-serif;
+      font-weight: 400;
+      font-size: clamp(14px, 3.5vw, 17px);
+      color: #555;
+      text-align: center;
+      max-width: 480px;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .qr-wrapper {
+      background: #fff;
+      border: 2px solid #e0e4f0;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #qrcode {
+      display: block;
+    }
+
+    #qrcode canvas,
+    #qrcode img {
+      display: block;
+      max-width: 240px;
+      max-height: 240px;
+      width: 100%;
+      height: auto;
+    }
+
+    .bank-details {
+      width: 100%;
+      max-width: 480px;
+      background: #f4f6fb;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 28px;
+    }
+
+    .bank-details table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(13px, 3.2vw, 16px);
+    }
+
+    .bank-details tr {
+      border-bottom: 1px solid #dde2ef;
+    }
+
+    .bank-details tr:last-child {
+      border-bottom: none;
+    }
+
+    .bank-details td {
+      padding: 8px 4px;
+      line-height: 1.4;
+    }
+
+    .bank-details td:first-child {
+      color: #888;
+      font-weight: 600;
+      white-space: nowrap;
+      padding-right: 14px;
+      width: 1%;
+    }
+
+    .bank-details td:last-child {
+      color: #181c3a;
+      font-weight: 600;
+    }
+
+    .highlight {
+      color: #222a58 !important;
+    }
+
+    .instructions {
+      width: 100%;
+      max-width: 480px;
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(13px, 3.2vw, 15px);
+      color: #444;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .instructions h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: clamp(13px, 3.5vw, 16px);
+      color: #181c3a;
+      margin-bottom: 8px;
+    }
+
+    .instructions ol {
+      padding-left: 20px;
+    }
+
+    .instructions li {
+      margin-bottom: 4px;
+    }
+
+    .instructions .disclaimer {
+      margin-top: 12px;
+      font-size: clamp(12px, 2.8vw, 14px);
+      color: #888;
+      font-style: italic;
+    }
+
+    .back-link {
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(14px, 3.5vw, 16px);
+      color: #222a58;
+      text-decoration: none;
+      border-bottom: 1px solid #aab0cc;
+      padding-bottom: 2px;
+      margin-bottom: 24px;
+    }
+
+    .back-link:hover {
+      color: #2d3570;
+      border-color: #2d3570;
+    }
+  </style>
+</head>
+
+<body>
+  <img
+    src="https://lh3.googleusercontent.com/d/1-XOxQXAiq2ws_-VB-FSksD5qKa4fQDSQ"
+    alt="International Church of Prague"
+    class="logo"
+  >
+
+  <h1 class="heading">Czech Bank Transfer (CZK)</h1>
+
+  <p class="note">
+    Screenshot this QR code and use it for QR payment in your banking app — or scan it directly from the app.
+  </p>
+
+  <div class="qr-wrapper">
+    <div id="qrcode"></div>
+  </div>
+
+  <div class="bank-details">
+    <table>
+      <tr>
+        <td>Account</td>
+        <td>178324272/0300</td>
+      </tr>
+      <tr>
+        <td>Account name</td>
+        <td>Sbor Církve Bratrské<br>International Church of Prague</td>
+      </tr>
+      <tr>
+        <td>IBAN</td>
+        <td>CZ45 0300 0000 0001 7832 4272</td>
+      </tr>
+      <tr>
+        <td>SWIFT</td>
+        <td>CEKOCZPP</td>
+      </tr>
+      <tr>
+        <td>Variabilní symbol</td>
+        <td class="highlight">1 &nbsp;← use this for tax deductibility</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="instructions">
+    <h3>How to pay via QR</h3>
+    <ol>
+      <li>Open your banking app and choose <strong>QR payment</strong>.</li>
+      <li>Point your camera at the QR code — bank details fill in automatically.</li>
+      <li>Enter the amount you wish to donate and confirm.</li>
+    </ol>
+    <p class="disclaimer">This QR code is for donations to ICP in CZK. Please use Variabilní Symbol "1" to ensure your contribution is tax deductible.</p>
+  </div>
+
+  <a class="back-link" href="giving.html">&larr; Back to giving options</a>
+
+  <script>
+    // SPAYD format – the Czech/Slovak standard for banking QR codes
+    // SPD*1.0*ACC:<IBAN>*X-VS:<variable_symbol>
+    var spaydData = 'SPD*1.0*ACC:CZ4503000000000178324272*X-VS:1';
+
+    new QRCode(document.getElementById('qrcode'), {
+      text: spaydData,
+      width: 240,
+      height: 240,
+      colorDark: '#181c3a',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    if (typeof gtag === 'function') {
+      gtag('event', 'page_view', { page_title: 'Czech Bank Transfer' });
+    }
+  </script>
+</body>
+</html>
