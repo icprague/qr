@@ -119,6 +119,30 @@
       height: clamp(28px, 7vw, 36px);
       width: auto;
     }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      margin-bottom: 24px;
+      padding: 10px 20px;
+      font-family: 'Raleway', sans-serif;
+      font-weight: 600;
+      font-size: clamp(15px, 3.5vw, 17px);
+      color: #222a58;
+      text-decoration: none;
+      border: 2px solid #222a58;
+      border-radius: 8px;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .back-link:hover,
+    .back-link:focus-visible {
+      background-color: #222a58;
+      color: #fff;
+      outline: none;
+    }
   </style>
 </head>
 
@@ -167,6 +191,8 @@
     </a>
 
   </div>
+
+  <a class="back-link" href="index.html">&#8592; Back</a>
 
   <script>
     (function () {

@@ -128,18 +128,27 @@
     }
 
     .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      margin-bottom: 24px;
+      padding: 10px 20px;
       font-family: 'Raleway', sans-serif;
-      font-size: clamp(14px, 3.5vw, 16px);
+      font-weight: 600;
+      font-size: clamp(15px, 3.5vw, 17px);
       color: #222a58;
       text-decoration: none;
-      border-bottom: 1px solid #aab0cc;
-      padding-bottom: 2px;
-      margin-bottom: 24px;
+      border: 2px solid #222a58;
+      border-radius: 8px;
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
 
-    .back-link:hover {
-      color: #2d3570;
-      border-color: #2d3570;
+    .back-link:hover,
+    .back-link:focus-visible {
+      background-color: #222a58;
+      color: #fff;
+      outline: none;
     }
   </style>
 </head>
