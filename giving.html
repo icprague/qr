@@ -135,20 +135,33 @@
       <span class="btn-label">Czech Bank Transfer (CZK)</span>
     </a>
 
-    <a id="btn-usd" class="btn" href="https://giving.myamplify.io//app/giving/idp">
+    <a id="btn-usd" class="btn" href="https://giving.myamplify.io//app/giving/idp" target="_blank" rel="noopener">
       <span class="btn-label">International / Card (USD)</span>
       <span class="payment-icons" aria-hidden="true">
-        <!-- Apple Pay – black badge -->
-        <svg viewBox="0 0 90 34" xmlns="http://www.w3.org/2000/svg" aria-label="Apple Pay">
-          <rect width="90" height="34" rx="6" fill="#000"/>
+        <!-- Generic card -->
+        <svg viewBox="0 0 50 34" xmlns="http://www.w3.org/2000/svg" aria-label="Credit card">
+          <rect width="50" height="34" rx="5" fill="#1a1f71"/>
+          <rect x="0" y="11" width="50" height="8" fill="#fff" opacity="0.15"/>
+          <rect x="5" y="7" width="8" height="6" rx="1" fill="#f5c842"/>
+          <rect x="5" y="23" width="14" height="2" rx="1" fill="#fff" opacity="0.6"/>
+          <rect x="22" y="23" width="9" height="2" rx="1" fill="#fff" opacity="0.4"/>
+          <rect x="34" y="23" width="11" height="2" rx="1" fill="#fff" opacity="0.3"/>
+        </svg>
+        <!-- Apple Pay – black badge with Apple logo character -->
+        <svg viewBox="0 0 82 34" xmlns="http://www.w3.org/2000/svg" aria-label="Apple Pay">
+          <rect width="82" height="34" rx="6" fill="#000"/>
           <text x="9" y="24" font-family="-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="500" fill="#fff">&#xF8FF; Pay</text>
         </svg>
-        <!-- Google Pay – white badge -->
-        <svg viewBox="0 0 96 34" xmlns="http://www.w3.org/2000/svg" aria-label="Google Pay">
-          <rect width="96" height="34" rx="6" fill="#fff"/>
-          <text x="9" y="24" font-family="'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="500">
-            <tspan fill="#4285F4">G</tspan><tspan fill="#5f6368"> Pay</tspan>
-          </text>
+        <!-- Google Pay – white badge with 4-colour Google G -->
+        <svg viewBox="0 0 62 34" xmlns="http://www.w3.org/2000/svg" aria-label="Google Pay">
+          <rect width="62" height="34" rx="6" fill="#fff"/>
+          <g transform="translate(4,7) scale(0.833)">
+            <path d="M20.64 12.2c0-.638-.057-1.252-.164-1.84H12v3.48h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.258h2.908C19.66 17.01 20.64 14.7 20.64 12.2z" fill="#4285F4"/>
+            <path d="M12 21c2.448 0 4.5-.806 6.004-2.184l-2.908-2.258c-.806.54-1.837.86-3.096.86-2.379 0-4.397-1.607-5.115-3.77H3.977v2.332A9.011 9.011 0 0012 21z" fill="#34A853"/>
+            <path d="M6.885 13.648A5.42 5.42 0 016.6 12a5.42 5.42 0 01.285-1.648V8.02H3.977A9.011 9.011 0 003 12c0 1.452.348 2.827.977 4.02l2.908-2.372z" fill="#FBBC05"/>
+            <path d="M12 6.58c1.34 0 2.542.461 3.49 1.368l2.615-2.615C16.496 3.89 14.448 3 12 3a9.011 9.011 0 00-8.023 4.02l2.908 2.332C7.603 7.632 9.62 6.58 12 6.58z" fill="#EA4335"/>
+          </g>
+          <text x="25" y="23" font-family="'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="500" fill="#5f6368">Pay</text>
         </svg>
       </span>
     </a>
