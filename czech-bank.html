@@ -19,9 +19,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
 
-  <!-- QR code generator library -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -77,17 +74,11 @@
       justify-content: center;
     }
 
-    #qrcode {
+    .qr-img {
       display: block;
-    }
-
-    #qrcode canvas,
-    #qrcode img {
-      display: block;
-      max-width: 240px;
-      max-height: 240px;
-      width: 100%;
-      height: auto;
+      width: 240px;
+      height: 240px;
+      object-fit: contain;
     }
 
     .bank-details {
@@ -199,7 +190,7 @@
   </p>
 
   <div class="qr-wrapper">
-    <div id="qrcode"></div>
+    <img src="qr_platba.png" alt="QR Platba – Czech bank transfer QR code" class="qr-img">
   </div>
 
   <div class="bank-details">
@@ -240,19 +231,6 @@
   <a class="back-link" href="giving.html">&larr; Back to giving options</a>
 
   <script>
-    // SPAYD format – the Czech/Slovak standard for banking QR codes
-    // SPD*1.0*ACC:<IBAN>*X-VS:<variable_symbol>
-    var spaydData = 'SPD*1.0*ACC:CZ4503000000000178324272*X-VS:1';
-
-    new QRCode(document.getElementById('qrcode'), {
-      text: spaydData,
-      width: 240,
-      height: 240,
-      colorDark: '#181c3a',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-
     if (typeof gtag === 'function') {
       gtag('event', 'page_view', { page_title: 'Czech Bank Transfer' });
     }
