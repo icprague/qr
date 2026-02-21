@@ -35,8 +35,8 @@ To distinguish where scans come from, use UTM parameters on your QR codes:
 
 | QR code location | URL |
 |---|---|
-| Pew cards | `https://sunday.icprague.cz/?utm_source=pew&utm_medium=qr` |
-| Take-home cards | `https://sunday.icprague.cz/?utm_source=takeaway&utm_medium=qr` |
+| Pew cards | `https://your-custom-domain.com/?utm_source=pew&utm_medium=qr` |
+| Take-home cards | `https://your-custom-domain.com/?utm_source=takeaway&utm_medium=qr` |
 
 GA4 picks up UTM parameters automatically — no extra code needed.
 
@@ -54,10 +54,10 @@ GA4 picks up UTM parameters automatically — no extra code needed.
 
 ### 2. Custom domain
 
-To serve the page at `sunday.icprague.cz`:
+To serve the page at a custom domain:
 
-1. In GitHub → **Settings** → **Pages** → **Custom domain**, enter `sunday.icprague.cz`
-2. In your DNS settings, add a **CNAME record**: `sunday` → `<username>.github.io`
+1. In GitHub → **Settings** → **Pages** → **Custom domain**, enter your domain (e.g. `sunday.your-church.org`)
+2. In your DNS settings, add a **CNAME record**: your subdomain → `<username>.github.io`
 3. Wait for DNS propagation, then enable **Enforce HTTPS** in GitHub Pages settings
 
 ### 3. Button URLs
