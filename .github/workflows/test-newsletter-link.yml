@@ -1,0 +1,38 @@
+name: "Test: Update Newsletter Link"
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+permissions:
+  contents: write
+
+jobs:
+  test-newsletter-link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch latest newsletter link (skip date check)
+        env:
+          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          FAIL_EMAIL: ${{ secrets.FAIL_EMAIL }}
+          SKIP_DATE_CHECK: 'true'
+        run: node scripts/update-newsletter-link.js
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add newsletter-link.json
+          git diff --staged --quiet || (git commit -m "chore: update newsletter link [test]" && git push)
