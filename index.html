@@ -109,44 +109,24 @@
   <h1 class="heading">SUNDAY SERVICE</h1>
   <div class="buttons">
     <a id="btn-newsletter" class="btn" href="#" target="_blank" rel="noopener">This Week's Newsletter</a>
-    <a id="btn-worship" class="btn" href="#" target="_blank" rel="noopener">Order of Worship</a>
-    <a id="btn-connect" class="btn" href="#" target="_blank" rel="noopener">Connect With Us</a>
-    <a id="btn-give" class="btn" href="#">Supporting ICP</a>
+    <a id="btn-worship" class="btn" href="https://icp.churchcenter.com/services/service_types/1235734/plans/before/today/public" target="_blank" rel="noopener">Order of Worship</a>
+    <a id="btn-connect" class="btn" href="https://icp.churchcenter.com/people/forms/576373" target="_blank" rel="noopener">Connect With Us</a>
+    <a id="btn-give" class="btn" href="giving.html">Supporting ICP</a>
   </div>
 
   <script>
     (function () {
-      var CONFIG_PATH = 'config.json';
-      var NEWSLETTER_PATH = 'newsletter-link.json';
-
-      function applyConfig(cfg) {
-        if (cfg.orderOfWorshipUrl) {
-          document.getElementById('btn-worship').href = cfg.orderOfWorshipUrl;
-        }
-        if (cfg.giveOnlineUrl) {
-          document.getElementById('btn-give').href = cfg.giveOnlineUrl;
-        }
-        if (cfg.connectCardUrl) {
-          document.getElementById('btn-connect').href = cfg.connectCardUrl;
-        }
-      }
-
-      function applyNewsletter(data) {
-        if (data.url) {
-          document.getElementById('btn-newsletter').href = data.url;
-        }
-      }
-
-      function fetchJSON(path, callback) {
+      function fetchNewsletter() {
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', path + '?t=' + Date.now(), true);
+        xhr.open('GET', 'newsletter-link.json?t=' + Date.now(), true);
         xhr.onload = function () {
           if (xhr.status === 200) {
             try {
-              callback(JSON.parse(xhr.responseText));
-            } catch (e) {
-              // ignore parse errors
-            }
+              var data = JSON.parse(xhr.responseText);
+              if (data.url) {
+                document.getElementById('btn-newsletter').href = data.url;
+              }
+            } catch (e) {}
           }
         };
         xhr.send();
@@ -164,16 +144,13 @@
         if (el) {
           el.addEventListener('click', function () {
             if (typeof gtag === 'function') {
-              gtag('event', 'button_click', {
-                button_name: buttons[id]
-              });
+              gtag('event', 'button_click', { button_name: buttons[id] });
             }
           });
         }
       });
 
-      fetchJSON(CONFIG_PATH, applyConfig);
-      fetchJSON(NEWSLETTER_PATH, applyNewsletter);
+      fetchNewsletter();
     })();
   </script>
 </body>
