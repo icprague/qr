@@ -1,8 +1,3 @@
-# International Church of Prague – Sunday Service Hub
-
-A landing page and automation system for ICP's Sunday services. Replaces the printed bulletin with a QR-code-friendly page, and automates the weekly preparation of announcements.
-
-## What it does
 
 **Landing page** (`index.html`) — A mobile-first page with four buttons:
 
@@ -44,37 +39,7 @@ GA4 picks up UTM parameters automatically — no extra code needed.
 
 ---
 
-## Setup
-
-### 1. Enable GitHub Pages
-
-1. Go to **Settings** → **Pages**
-2. Set source to **Deploy from a branch**, select `main`, folder `/ (root)`
-3. The site will be live at `https://<username>.github.io/<repo>/`
-
-### 2. Custom domain
-
-To serve the page at a custom domain:
-
-1. In GitHub → **Settings** → **Pages** → **Custom domain**, enter your domain (e.g. `sunday.your-church.org`)
-2. In your DNS settings, add a **CNAME record**: your subdomain → `<username>.github.io`
-3. Wait for DNS propagation, then enable **Enforce HTTPS** in GitHub Pages settings
-
-### 3. Button URLs
-
-Edit `config.json` to set the three static button URLs:
-
-```json
-{
-  "orderOfWorshipUrl": "https://icp.churchcenter.com/services/...",
-  "giveOnlineUrl": "https://www.icprague.cz/supporting-icp",
-  "connectCardUrl": "https://icp.churchcenter.com/people/forms/..."
-}
-```
-
-The newsletter URL is managed automatically by the Update Newsletter Link workflow.
-
-### 4. GitHub Secrets
+### GitHub Secrets
 
 Go to **Settings** → **Secrets and variables** → **Actions** and add:
 
@@ -93,7 +58,7 @@ Go to **Settings** → **Secrets and variables** → **Actions** and add:
 | `GOOGLE_DOC_ID` | ID of the Google Doc used for announcements (see below) |
 | `GOOGLE_SPREADSHEET_ID` | (Optional) ID of the Google Spreadsheet for regular reminders (see below) |
 
-### 5. Google Cloud (Workload Identity Federation)
+### Google Cloud (Workload Identity Federation)
 
 The announcements workflow authenticates to Google Docs and Google Sheets via Workload Identity Federation — no long-lived JSON key files.
 
@@ -114,7 +79,7 @@ The access token scopes in the workflows already include `https://www.googleapis
 
 See the [google-github-actions/auth docs](https://github.com/google-github-actions/auth#workload-identity-federation-through-a-service-account) for Workload Identity Federation setup instructions.
 
-### 6. Google Doc
+### Google Doc
 
 The announcements are written to a single Google Doc that gets overwritten each week. The URL never changes, so it works as a permanent QR code target.
 
@@ -125,7 +90,7 @@ The announcements are written to a single Google Doc that gets overwritten each 
 5. Copy the doc ID from the URL (the string between `/d/` and `/edit`)
 6. Add it as the `GOOGLE_DOC_ID` secret
 
-### 7. Google Spreadsheet (Regular Reminders)
+### Google Spreadsheet (Regular Reminders)
 
 Regular reminders rotate on a 4-week cycle, pulled from a Google Spreadsheet.
 
@@ -133,24 +98,7 @@ Regular reminders rotate on a 4-week cycle, pulled from a Google Spreadsheet.
 
 1. Create a new Google Spreadsheet
 2. Name the first sheet tab **"Regular Reminders"**
-3. Set up columns as follows:
 
-| Column A | Column B | Column C | Column D |
-|---|---|---|---|
-| **Active** | **Week** | **Title** | **Text** |
-| TRUE | 1 | Women's Bible Study | Join us every Tuesday at 10 AM in the fellowship hall for our women's Bible study. All women are welcome! |
-| TRUE | 1 | Youth Group | Youth group meets every Friday at 6 PM. See Pastor Mark for details. |
-| TRUE | 2 | Men's Breakfast | Men's breakfast is on the first Saturday of the month at 8 AM at Café Louvre. |
-| TRUE | 2 | Prayer Meeting | Wednesday evening prayer meeting at 7 PM in the church library. |
-| TRUE | 3 | Church Cleanup Day | Help us spruce up the church grounds! Meet at 9 AM on Saturday. |
-| FALSE | 3 | Old Event | This won't appear because Active is FALSE. |
-| TRUE | 4 | Community Dinner | Monthly community dinner at 6 PM in the fellowship hall. Everyone welcome! |
-| TRUE | 4 | Volunteer Sign-up | Sign up to volunteer for Sunday services at the welcome desk. |
-
-- **Active**: `TRUE` or `FALSE` — controls whether the reminder appears
-- **Week**: `1`, `2`, `3`, or `4` — which week of the 4-week cycle this appears in
-- **Title**: The heading for the reminder
-- **Text**: The body text for the reminder
 
 #### Sharing with the service account
 
@@ -173,16 +121,6 @@ All automated emails are sent from the `GMAIL_USER` address via Gmail SMTP. This
 Emails appear as:
 - **Editors/moderator emails**: `"ICP Sunday Announcements" <your-gmail@gmail.com>`
 - **Failure notifications**: `"ICP Automation" <your-gmail@gmail.com>`
-
-### 9. Test the workflows
-
-All workflows can be triggered manually from **Actions** → select the workflow → **Run workflow**.
-
-| Test workflow | What it tests |
-|---|---|
-| **Test: Send Editors Email** | Sends the editors email with the current Google Doc link. Does NOT re-process the newsletter or update the doc. |
-| **Test: Send Moderator Email** | Sends the moderator email with the current Google Doc link (looks up moderator from Planning Center). Does NOT re-process the newsletter or update the doc. |
-| **Test: Full Announcements Pipeline** | Runs the full Friday pipeline (Mailchimp → parse → Google Doc → editors email) with the same-day check disabled so it works on any day. **This will overwrite the Google Doc.** |
 
 ---
 
