@@ -257,6 +257,20 @@ gtag('config', 'G-YL2P0BP685');
   align-items: center;
 }
 
+/* Czech view — compact so it fits on one screen */
+.icp-wrap.icp-compact {
+  padding-bottom: 20px;
+}
+.icp-wrap.icp-compact img.icp-logo {
+  width: 35%;
+  max-width: 200px;
+  margin-bottom: 10px;
+}
+.icp-wrap.icp-compact h1 {
+  font-size: clamp(18px, 5vw, 28px);
+  margin-bottom: 8px;
+}
+
 /* Hide Squarespace chrome on this page */
 header,
 #header,
@@ -421,6 +435,7 @@ body,
     document.getElementById('icp-view-main').style.display   = v === 'main'   ? 'flex' : 'none';
     document.getElementById('icp-view-giving').style.display = v === 'giving' ? 'flex' : 'none';
     document.getElementById('icp-view-czech').style.display  = v === 'czech'  ? 'flex' : 'none';
+    document.querySelector('.icp-wrap').classList.toggle('icp-compact', v === 'czech');
     var titles = { main: 'Sunday Service', giving: 'Supporting ICP', czech: 'Czech Bank Transfer' };
     var paths  = { main: '/welcome', giving: '/welcome#giving', czech: '/welcome#czech' };
     if (typeof gtag === 'function') {
