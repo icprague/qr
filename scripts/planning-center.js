@@ -293,12 +293,15 @@ async function updateModeratorInPlanItems() {
   );
   const items = JSON.parse(itemsRaw);
 
+  // Only update the Announcements item — match titles that contain both
+  // "Announcements" and "(Moderator...)" to avoid touching anything else.
+  const announcementsPattern = /announcements/i;
   const moderatorPattern = /\(Moderator[^)]*\)/i;
   let updatedCount = 0;
 
   for (const item of items.data || []) {
     const title = item.attributes.title || '';
-    if (!moderatorPattern.test(title)) continue;
+    if (!announcementsPattern.test(title) || !moderatorPattern.test(title)) continue;
 
     const newTitle = title.replace(moderatorPattern, replacementText);
     if (newTitle === title) {
