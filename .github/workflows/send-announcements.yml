@@ -50,3 +50,9 @@ jobs:
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
         run: node scripts/send-announcements.js
+
+      - name: Write moderator name into Planning Center order of service
+        env:
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+        run: node scripts/update-plan-items.js

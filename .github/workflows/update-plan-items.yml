@@ -1,0 +1,49 @@
+name: "Write Moderator Name to Planning Center Order of Service"
+
+# Runs on three schedules and can be triggered manually at any time.
+#
+# Tuesday ~8 AM Prague — pastor sees the name when he logs in mid-week
+# Saturday ~6 PM Prague — last-minute check in case of a rota change
+# workflow_dispatch     — manual trigger for a Sunday-morning emergency switch
+#
+# Prague is UTC+1 (CET, winter) / UTC+2 (CEST, summer).
+# The cron times below are set to the CEST (summer) UTC equivalent;
+# they will run 1 hour earlier in Prague during winter — still acceptable.
+#   8 AM CEST  = 06:00 UTC  (Tuesday)
+#   6 PM CEST  = 16:00 UTC  (Saturday)
+
+on:
+  schedule:
+    - cron: '0 6 * * 2'   # Tuesday ~8 AM Prague (CEST) / ~7 AM (CET)
+    - cron: '0 16 * * 6'  # Saturday ~6 PM Prague (CEST) / ~5 PM (CET)
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual run (optional, for the log)'
+        required: false
+        default: ''
+
+jobs:
+  update-plan-items:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write moderator name into Planning Center order of service
+        env:
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+        run: |
+          if [ -n "${{ inputs.reason }}" ]; then
+            echo "Manual run reason: ${{ inputs.reason }}"
+          fi
+          node scripts/update-plan-items.js
