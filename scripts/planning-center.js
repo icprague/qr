@@ -139,8 +139,18 @@ async function getModeratorInfo() {
     return { found: true, name, email: null };
   }
 
-  // Look up email via the People module (the Services /people endpoint is a
-  // singleton "me" resource and would return the API token owner's email)
+  // Try services people endpoint
+  try {
+    const personRaw = await fetch(`https://api.planningcenteronline.com/services/v2/people/${personId}/emails`, { headers });
+    const emails = JSON.parse(personRaw);
+    if (emails.data?.length > 0) {
+      const email = emails.data[0].attributes.address;
+      console.log(`Found moderator: ${name} (${email})`);
+      return { found: true, name, email };
+    }
+  } catch {}
+
+  // Try people endpoint
   try {
     const peopleEmailRaw = await fetch(`https://api.planningcenteronline.com/people/v2/people/${personId}/emails`, { headers });
     const peopleEmails = JSON.parse(peopleEmailRaw);
