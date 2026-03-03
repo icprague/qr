@@ -1,0 +1,29 @@
+name: "Fetch Plan Items (read-only diagnostic)"
+
+# Run this once manually from GitHub Actions → Actions tab → "Fetch Plan Items"
+# to see all item names in the next Sunday's Planning Center plan.
+# Delete or disable this workflow once you have confirmed the item names.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch-plan-items:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch plan items from Planning Center
+        env:
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+        run: node scripts/fetch-plan-items.js
