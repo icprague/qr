@@ -6,15 +6,6 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Supporting ICP – International Church of Prague</title>
 
-  <!-- Google Analytics 4 -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-YL2P0BP685"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-YL2P0BP685');
-  </script>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Raleway:wght@600&display=swap" rel="stylesheet">
@@ -219,23 +210,5 @@
 
   <a class="back-link" href="index.html">&#8592; Back</a>
 
-  <script>
-    (function () {
-      var buttons = {
-        'btn-czk': 'giving_czk',
-        'btn-usd': 'giving_usd'
-      };
-      Object.keys(buttons).forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) {
-          el.addEventListener('click', function () {
-            if (typeof gtag === 'function') {
-              gtag('event', 'button_click', { button_name: buttons[id] });
-            }
-          });
-        }
-      });
-    })();
-  </script>
 </body>
 </html>
