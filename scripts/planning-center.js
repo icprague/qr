@@ -16,6 +16,44 @@ const http = require('http');
 // HTTP helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * HTTP PATCH using the Planning Center JSON:API format.
+ * Returns the raw response body string.
+ */
+function httpPatch(url, body, authHeader) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const payload = JSON.stringify(body);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: Number(u.port) || 443,
+        path: u.pathname + u.search,
+        method: 'PATCH',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf-8');
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            return reject(new Error(`HTTP ${res.statusCode} PATCH ${url}: ${text}`));
+          }
+          resolve(text);
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
 function fetch(url, options = {}, redirects = 0) {
   return new Promise((resolve, reject) => {
     if (redirects > 5) return reject(new Error('Too many redirects'));
@@ -167,4 +205,130 @@ async function getModeratorInfo() {
   return { found: true, name, email: null };
 }
 
-module.exports = { getModeratorInfo };
+// ---------------------------------------------------------------------------
+// Planning Center plan-item write-back
+// ---------------------------------------------------------------------------
+
+/**
+ * Look up the moderator's name for the upcoming Sunday and write it into every
+ * plan item whose title contains "(Moderator...)" — e.g.:
+ *
+ *   " Announcements + Welcome Guests (Moderator)"
+ *     →  " Announcements + Welcome Guests (Moderator - Jane Smith)"
+ *
+ * If no one is assigned to the Moderator position the text becomes:
+ *   " Announcements + Welcome Guests (Moderator - no moderator scheduled)"
+ *
+ * Subsequent runs safely overwrite whatever name was written previously
+ * because the regex matches "(Moderator...)" regardless of current content.
+ *
+ * @returns {{ moderatorName: string|null, updatedCount: number }}
+ */
+async function updateModeratorInPlanItems() {
+  const { PLANNING_CENTER_APP_ID, PLANNING_CENTER_SECRET } = process.env;
+  if (!PLANNING_CENTER_APP_ID || !PLANNING_CENTER_SECRET) {
+    throw new Error('Planning Center credentials not configured');
+  }
+
+  const sunday = getUpcomingSunday();
+  const dateStr = sunday.toISOString().split('T')[0];
+  const authHeader =
+    'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
+  const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
+
+  console.log(`Updating plan items for upcoming Sunday: ${dateStr}`);
+
+  // Get service type
+  const serviceTypesRaw = await fetch(
+    'https://api.planningcenteronline.com/services/v2/service_types',
+    { headers }
+  );
+  const serviceTypes = JSON.parse(serviceTypesRaw);
+  if (!serviceTypes.data?.length) throw new Error('No service types found.');
+  const serviceTypeId = serviceTypes.data[0].id;
+  console.log(`Service type: ${serviceTypes.data[0].attributes.name} (${serviceTypeId})`);
+
+  // Get upcoming plans
+  const plansRaw = await fetch(
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=future&per_page=5`,
+    { headers }
+  );
+  const plans = JSON.parse(plansRaw);
+  if (!plans.data?.length) throw new Error('No upcoming plans found.');
+
+  let targetPlan = plans.data[0];
+  for (const plan of plans.data) {
+    const planDate = plan.attributes.sort_date || plan.attributes.dates;
+    if (planDate && planDate.startsWith(dateStr)) { targetPlan = plan; break; }
+  }
+  console.log(`Plan: ${targetPlan.attributes.dates} (ID: ${targetPlan.id})`);
+
+  // Find the moderator from assigned team members (skip status 'D' = declined)
+  const teamMembersRaw = await fetch(
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`,
+    { headers }
+  );
+  const teamMembers = JSON.parse(teamMembersRaw);
+
+  let moderatorName = null;
+  for (const member of teamMembers.data || []) {
+    const position = (member.attributes.team_position_name || '').toLowerCase();
+    if (position.includes('moderator') && member.attributes.status !== 'D') {
+      moderatorName = member.attributes.name;
+      break;
+    }
+  }
+
+  const replacementText = moderatorName
+    ? `(Moderator - ${moderatorName})`
+    : '(Moderator - no moderator scheduled)';
+
+  console.log(`Moderator: ${moderatorName || 'not assigned'}`);
+  console.log(`Will write: "${replacementText}"`);
+
+  // Fetch plan items and patch any whose title contains "(Moderator...)"
+  const itemsRaw = await fetch(
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
+    { headers }
+  );
+  const items = JSON.parse(itemsRaw);
+
+  // Only update the Announcements item — match titles that contain both
+  // "Announcements" and "(Moderator...)" to avoid touching anything else.
+  const announcementsPattern = /announcements/i;
+  const moderatorPattern = /\(Moderator[^)]*\)/i;
+  let updatedCount = 0;
+
+  for (const item of items.data || []) {
+    const title = item.attributes.title || '';
+    if (!announcementsPattern.test(title) || !moderatorPattern.test(title)) continue;
+
+    const newTitle = title.replace(moderatorPattern, replacementText);
+    if (newTitle === title) {
+      console.log(`  [${item.id}] "${title}" — already current, skipping`);
+      continue;
+    }
+
+    console.log(`  [${item.id}] "${title}"`);
+    console.log(`       → "${newTitle}"`);
+
+    await httpPatch(
+      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${item.id}`,
+      { data: { type: 'Item', id: item.id, attributes: { title: newTitle } } },
+      authHeader
+    );
+
+    console.log(`       ✓ Updated`);
+    updatedCount++;
+  }
+
+  if (updatedCount === 0) {
+    console.log('No items needed updating.');
+  } else {
+    console.log(`\nUpdated ${updatedCount} plan item(s).`);
+  }
+
+  return { moderatorName, updatedCount };
+}
+
+module.exports = { getModeratorInfo, updateModeratorInPlanItems };

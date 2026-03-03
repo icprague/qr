@@ -1,0 +1,33 @@
+name: "Write Moderator Name to Planning Center Order of Service"
+
+# Schedules are disabled until setup is complete. Uncomment to enable:
+# Prague is UTC+1 (CET, winter) / UTC+2 (CEST, summer).
+#   8 AM CEST = 06:00 UTC (Tuesday) | 8 AM CET = 07:00 UTC
+#   6 PM CEST = 16:00 UTC (Saturday) | 6 PM CET = 17:00 UTC
+
+on:
+  # schedule:
+  #   - cron: '0 6 * * 2'   # Tuesday ~8 AM Prague (CEST) / ~7 AM (CET)
+  #   - cron: '0 16 * * 6'  # Saturday ~6 PM Prague (CEST) / ~5 PM (CET)
+  workflow_dispatch: # Manual trigger from the Actions tab
+
+jobs:
+  update-plan-items:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write moderator name into Planning Center order of service
+        env:
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+        run: node scripts/update-plan-items.js
