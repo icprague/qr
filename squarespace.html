@@ -257,7 +257,7 @@ gtag('config', 'G-YL2P0BP685');
   align-items: center;
 }
 
-/* Hide Squarespace header/nav and footer on this page */
+/* Hide Squarespace chrome on this page */
 header,
 #header,
 .site-header,
@@ -267,9 +267,34 @@ footer,
 #footer,
 .site-footer,
 .footer-sections,
+/* Announcement / promo bar */
 .sqs-announcement-bar,
-.sqs-announcement-bar-dropzone {
+.sqs-announcement-bar-dropzone,
+/* Newsletter widgets */
+.sqs-block-newsletter,
+.newsletter-form-wrapper,
+.sqsMailingListBlock,
+.sqs-popup-overlay,
+/* Mobile floating nav / contact bar (maps & email icons) */
+.mobile-overlay-nav,
+.nav-lock,
+.mobile-bar,
+.sqs-mobile-overlay-nav,
+.FloatingActionButton,
+.floating-action-button,
+[class*="MobileOverlayNav"],
+[class*="mobileOverlayNav"] {
   display: none !important;
+}
+
+/* Remove the top gap left behind by the hidden header */
+body,
+#page,
+.site-content,
+.content-wrapper,
+.main-content {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
 }
 
 .icp-script-hide {
