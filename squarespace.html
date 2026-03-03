@@ -1,0 +1,445 @@
+<!--
+  ICP Sunday Service — Squarespace code block
+  Paste this entire file into a Squarespace Code Block.
+
+  QR code UTM parameters:
+    Pew card:       ?utm_source=qr&utm_content=pew
+    Take-home card: ?utm_source=qr&utm_content=takeaway  ← shows location button
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YL2P0BP685"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-YL2P0BP685');
+</script>
+
+<style>
+.icp-wrap {
+  font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  -webkit-font-smoothing: antialiased;
+}
+
+.icp-wrap img.icp-logo {
+  width: 50%;
+  max-width: 300px;
+  height: auto;
+  margin-bottom: 24px;
+  display: block;
+}
+
+.icp-wrap h1 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: clamp(28px, 8vw, 48px);
+  color: #181c3a;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.icp-wrap .icp-buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.icp-wrap .icp-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: max(16px, 4vw);
+  margin-bottom: 20px;
+  background-color: #222a58;
+  color: #f7f9fe !important;
+  font-family: 'Raleway', sans-serif;
+  font-weight: 600;
+  font-size: clamp(22px, 7vw, 28px);
+  text-align: center;
+  text-decoration: none !important;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
+}
+
+.icp-wrap .icp-btn:hover {
+  background-color: #2d3570;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(34, 42, 88, 0.3);
+}
+
+.icp-wrap .icp-btn:focus-visible {
+  outline: 3px solid #4d6fff;
+  outline-offset: 3px;
+}
+
+.icp-wrap .icp-btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(34, 42, 88, 0.2);
+}
+
+.icp-wrap .icp-btn-label {
+  text-align: center;
+}
+
+.icp-wrap .payment-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.icp-wrap .payment-icons svg {
+  height: clamp(34px, 8.5vw, 44px);
+  width: clamp(60px, 15vw, 78px);
+}
+
+.icp-wrap .icp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 24px;
+  padding: 10px 20px;
+  font-family: 'Raleway', sans-serif;
+  font-weight: 600;
+  font-size: clamp(15px, 3.5vw, 17px);
+  color: #222a58 !important;
+  text-decoration: none !important;
+  border: 2px solid #222a58;
+  border-radius: 8px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.icp-wrap .icp-back:hover,
+.icp-wrap .icp-back:focus-visible {
+  background-color: #222a58;
+  color: #fff !important;
+  outline: none;
+}
+
+.icp-wrap .icp-info-note {
+  font-family: 'Raleway', sans-serif;
+  font-size: clamp(13px, 3.2vw, 15px);
+  color: #666;
+  text-align: center;
+  max-width: 480px;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.icp-wrap .icp-info-note a {
+  color: #222a58;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.icp-wrap .icp-note {
+  font-family: 'Raleway', sans-serif;
+  font-weight: 400;
+  font-size: clamp(14px, 3.5vw, 17px);
+  color: #555;
+  text-align: center;
+  max-width: 480px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.icp-wrap .icp-qr-img {
+  display: block;
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+  border-radius: 8px;
+  margin: 10px auto 4px;
+}
+
+.icp-wrap .icp-qr-label {
+  font-family: 'Raleway', sans-serif;
+  font-weight: 700;
+  color: #181c3a;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.icp-wrap .icp-bank-info {
+  width: 100%;
+  max-width: 480px;
+  background: #f4f6fb;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.icp-wrap .icp-bank-info table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Raleway', sans-serif;
+  font-size: clamp(13px, 3.2vw, 16px);
+}
+
+.icp-wrap .icp-bank-info tr {
+  border-bottom: 1px solid #dde2ef;
+}
+
+.icp-wrap .icp-bank-info tr:last-child {
+  border-bottom: none;
+}
+
+.icp-wrap .icp-bank-info td {
+  padding: 8px 4px;
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.icp-wrap .icp-bank-info td:first-child {
+  color: #888;
+  font-weight: 600;
+  white-space: nowrap;
+  padding-right: 14px;
+  width: 1%;
+}
+
+.icp-wrap .icp-bank-info td:last-child {
+  color: #181c3a;
+  font-weight: 600;
+}
+
+.icp-wrap .icp-highlight {
+  color: #6b1624 !important;
+}
+
+.icp-wrap .icp-copy-btn {
+  margin-left: 10px;
+  padding: 3px 10px;
+  font-family: 'Raleway', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  background: #222a58;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background-color 0.2s ease;
+}
+
+.icp-wrap .icp-copy-btn.copied {
+  background: #2e7d32;
+}
+
+#icp-view-main,
+#icp-view-giving,
+#icp-view-czech {
+  display: none;
+  width: 100%;
+}
+
+.icp-script-hide {
+  display: none !important;
+  font-size: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+</style>
+
+<div class="icp-wrap">
+
+  <img class="icp-logo"
+    src="https://images.squarespace-cdn.com/content/5d9a769dd074bd084431d6b7/b29ddeee-7199-4070-842a-34178cc7135b/ICP_LOGO_h500px.png?content-type=image%2Fpng"
+    alt="International Church of Prague">
+
+  <!-- MAIN VIEW -->
+  <div id="icp-view-main">
+    <h1>SUNDAY SERVICE</h1>
+    <div class="icp-buttons">
+      <a class="icp-btn" id="icp-btn-newsletter" href="https://mailchi.mp/ba9f7bd623da/this-week-at-icp-16540686" target="_blank">This Week&#39;s Newsletter</a>
+      <a class="icp-btn" id="icp-btn-worship" href="https://icp.churchcenter.com/services/service_types/1235734/plans/before/today/public" target="_blank">Order of Worship</a>
+      <a class="icp-btn" id="icp-btn-connect" href="https://icp.churchcenter.com/people/forms/576373" target="_blank">Connect With Us</a>
+      <a class="icp-btn" href="javascript:void(0)" id="icp-btn-give-nav">Supporting ICP</a>
+      <!-- Only shown when utm_content=takeaway -->
+      <a class="icp-btn" id="icp-btn-location" href="https://maps.app.goo.gl/RxN6Lzey4pCz5XDMA" target="_blank" style="display:none">Sunday Service Location</a>
+    </div>
+  </div>
+
+  <!-- GIVING VIEW -->
+  <div id="icp-view-giving">
+    <h1>SUPPORTING ICP</h1>
+    <div class="icp-buttons">
+      <a class="icp-btn" href="javascript:void(0)" id="icp-btn-czech-nav">Czech Bank Transfer (CZK)</a>
+      <a class="icp-btn" id="icp-btn-usd" href="https://giving.myamplify.io//app/giving/idp" target="_blank">
+        <span class="icp-btn-label">International &middot; Card (USD)</span>
+        <span class="payment-icons" aria-hidden="true">
+          <!-- Generic card -->
+          <svg width="60" height="34" viewBox="0 0 60 34" xmlns="http://www.w3.org/2000/svg" aria-label="Credit card">
+            <rect width="60" height="34" rx="5" fill="#829CFC"/>
+            <rect x="0" y="11" width="60" height="8" fill="#6B83E0"/>
+            <rect x="5" y="7" width="9" height="6" rx="1" fill="#FFCA44"/>
+            <rect x="5" y="24" width="16" height="2" rx="1" fill="#fff" opacity="0.7"/>
+            <rect x="24" y="24" width="11" height="2" rx="1" fill="#fff" opacity="0.5"/>
+            <rect x="38" y="24" width="17" height="2" rx="1" fill="#fff" opacity="0.35"/>
+          </svg>
+          <!-- Apple Pay -->
+          <svg width="60" height="34" viewBox="0 0 60 34" xmlns="http://www.w3.org/2000/svg" aria-label="Apple Pay">
+            <rect width="60" height="34" rx="6" fill="#000"/>
+            <text x="8" y="24" font-family="-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="500" fill="#fff">&#xF8FF; Pay</text>
+          </svg>
+          <!-- Google Pay -->
+          <svg width="60" height="34" viewBox="0 0 60 34" xmlns="http://www.w3.org/2000/svg" aria-label="Google Pay">
+            <rect width="60" height="34" rx="6" fill="#fff"/>
+            <g transform="translate(4,7) scale(0.833)">
+              <path d="M20.64 12.2c0-.638-.057-1.252-.164-1.84H12v3.48h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.258h2.908C19.66 17.01 20.64 14.7 20.64 12.2z" fill="#4285F4"/>
+              <path d="M12 21c2.448 0 4.5-.806 6.004-2.184l-2.908-2.258c-.806.54-1.837.86-3.096.86-2.379 0-4.397-1.607-5.115-3.77H3.977v2.332A9.011 9.011 0 0012 21z" fill="#34A853"/>
+              <path d="M6.885 13.648A5.42 5.42 0 016.6 12a5.42 5.42 0 01.285-1.648V8.02H3.977A9.011 9.011 0 003 12c0 1.452.348 2.827.977 4.02l2.908-2.372z" fill="#FBBC05"/>
+              <path d="M12 6.58c1.34 0 2.542.461 3.49 1.368l2.615-2.615C16.496 3.89 14.448 3 12 3a9.011 9.011 0 00-8.023 4.02l2.908 2.332C7.603 7.632 9.62 6.58 12 6.58z" fill="#EA4335"/>
+            </g>
+            <text x="23" y="23" font-family="'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="500" fill="#5f6368">Pay</text>
+          </svg>
+        </span>
+      </a>
+    </div>
+    <p class="icp-info-note">
+      For more information about supporting ICP, visit<br>
+      <a href="https://www.icprague.cz/supporting-icp" target="_blank">icprague.cz/supporting-icp</a>
+    </p>
+    <a class="icp-back" href="javascript:void(0)" id="icp-btn-back-main">&larr; Back</a>
+  </div>
+
+  <!-- CZECH BANK VIEW -->
+  <div id="icp-view-czech">
+    <h1>Czech Bank Transfer (CZK)</h1>
+    <p class="icp-note">Screenshot this QR code and use it for QR payment in your banking app &mdash; or scan it directly from the app.</p>
+    <img src="https://icprague.github.io/qr/qr_platba.png" alt="QR Platba – Czech bank transfer QR code" class="icp-qr-img">
+    <p class="icp-qr-label">QR Platba</p>
+    <div class="icp-bank-info">
+      <table>
+        <tr>
+          <td>Account number</td>
+          <td>
+            <span id="icp-acct-number">178324272/0300</span>
+            <button id="icp-copy-btn" class="icp-copy-btn" aria-label="Copy account number">Copy</button>
+          </td>
+        </tr>
+        <tr>
+          <td>Variabiln&iacute; symbol</td>
+          <td class="icp-highlight">1 &nbsp;&larr; use this to ensure the contribution is tax deductible</td>
+        </tr>
+      </table>
+    </div>
+    <a class="icp-back" href="javascript:void(0)" id="icp-btn-back-giving">&larr; Back to Giving Options</a>
+  </div>
+
+</div>
+
+<div class="icp-script-hide" aria-hidden="true">
+<script>
+(function () {
+  var BASE = 'https://icprague.github.io/qr/';
+
+  // --- View switching with virtual page views ---
+  function icpShow(v) {
+    document.getElementById('icp-view-main').style.display   = v === 'main'   ? 'block' : 'none';
+    document.getElementById('icp-view-giving').style.display = v === 'giving' ? 'block' : 'none';
+    document.getElementById('icp-view-czech').style.display  = v === 'czech'  ? 'block' : 'none';
+    var titles = { main: 'Sunday Service', giving: 'Supporting ICP', czech: 'Czech Bank Transfer' };
+    var paths  = { main: '/welcome', giving: '/welcome#giving', czech: '/welcome#czech' };
+    if (typeof gtag === 'function') {
+      gtag('event', 'page_view', {
+        page_title: titles[v],
+        page_location: window.location.origin + paths[v]
+      });
+    }
+  }
+
+  icpShow('main');
+
+  // --- Navigation ---
+  document.getElementById('icp-btn-give-nav').addEventListener('click', function () {
+    if (typeof gtag === 'function') gtag('event', 'button_click', { button_name: 'supporting_icp' });
+    icpShow('giving');
+  });
+  document.getElementById('icp-btn-czech-nav').addEventListener('click', function () {
+    if (typeof gtag === 'function') gtag('event', 'button_click', { button_name: 'giving_czk' });
+    icpShow('czech');
+  });
+  document.getElementById('icp-btn-back-main').addEventListener('click',   function () { icpShow('main'); });
+  document.getElementById('icp-btn-back-giving').addEventListener('click', function () { icpShow('giving'); });
+
+  // --- Button click tracking ---
+  var tracked = {
+    'icp-btn-newsletter': 'newsletter',
+    'icp-btn-worship':    'order_of_worship',
+    'icp-btn-connect':    'connect_card',
+    'icp-btn-usd':        'giving_usd',
+    'icp-btn-location':   'location'
+  };
+  Object.keys(tracked).forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function () {
+      if (typeof gtag === 'function') gtag('event', 'button_click', { button_name: tracked[id] });
+    });
+  });
+
+  // --- Copy button with feedback ---
+  var copyBtn = document.getElementById('icp-copy-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      var text = document.getElementById('icp-acct-number').textContent;
+      navigator.clipboard.writeText(text).then(function () {
+        if (typeof gtag === 'function') gtag('event', 'button_click', { button_name: 'copy_account' });
+        copyBtn.textContent = '✓ Copied';
+        copyBtn.classList.add('copied');
+        setTimeout(function () {
+          copyBtn.textContent = 'Copy';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      });
+    });
+  }
+
+  // --- Show location button for take-home card ---
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('utm_content') === 'takeaway') {
+    var locBtn = document.getElementById('icp-btn-location');
+    if (locBtn) locBtn.style.display = 'flex';
+  }
+
+  // --- Dynamic URLs from GitHub ---
+  function fetchJSON(path, cb) {
+    var x = new XMLHttpRequest();
+    x.open('GET', BASE + path + '?t=' + Date.now(), true);
+    x.onload = function () {
+      if (x.status === 200) try { cb(JSON.parse(x.responseText)); } catch (e) {}
+    };
+    x.send();
+  }
+
+  fetchJSON('newsletter-link.json', function (d) {
+    if (d.url) document.getElementById('icp-btn-newsletter').href = d.url;
+  });
+  fetchJSON('config.json', function (c) {
+    if (c.orderOfWorshipUrl) document.getElementById('icp-btn-worship').href = c.orderOfWorshipUrl;
+    if (c.connectCardUrl)    document.getElementById('icp-btn-connect').href = c.connectCardUrl;
+  });
+
+})();
+</script>
+</div>
