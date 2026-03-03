@@ -81,19 +81,41 @@ async function main() {
   }
   console.log(`Plan: "${targetPlan.attributes.title || '(no title)'}" — ${targetPlan.attributes.dates} (ID: ${targetPlan.id})\n`);
 
-  // 3. Fetch team members (for context)
-  const tmRaw = await fetch(
-    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`,
-    { headers }
-  );
+  // 3. Fetch team members (assigned) and needed positions (unassigned) in parallel
+  const [tmRaw, npRaw] = await Promise.all([
+    fetch(
+      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`,
+      { headers }
+    ),
+    fetch(
+      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/needed_positions`,
+      { headers }
+    ),
+  ]);
   const teamMembers = JSON.parse(tmRaw);
-  console.log('=== TEAM MEMBERS ===');
+  const neededPositions = JSON.parse(npRaw);
+
+  console.log('=== ASSIGNED TEAM MEMBERS ===');
   if (teamMembers.data?.length) {
     for (const m of teamMembers.data) {
-      console.log(`  [${m.id}] ${m.attributes.name} — position: "${m.attributes.team_position_name}"`);
+      const status = m.attributes.status ? ` [${m.attributes.status}]` : '';
+      console.log(`  [${m.id}]${status} ${m.attributes.name} — position: "${m.attributes.team_position_name}"`);
     }
   } else {
     console.log('  (none found)');
+  }
+  console.log('');
+
+  console.log('=== UNASSIGNED / NEEDED POSITIONS ===');
+  if (neededPositions.data?.length) {
+    for (const np of neededPositions.data) {
+      const a = np.attributes;
+      const qty = a.quantity > 1 ? ` (×${a.quantity})` : '';
+      const team = a.team_name ? ` — team: "${a.team_name}"` : '';
+      console.log(`  [${np.id}] position: "${a.team_position_name}"${qty}${team}`);
+    }
+  } else {
+    console.log('  (all positions filled)');
   }
   console.log('');
 
