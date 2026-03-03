@@ -345,7 +345,7 @@ body,
 
   <!-- MAIN VIEW -->
   <div id="icp-view-main">
-    <h1>SUNDAY SERVICE</h1>
+    <h1 id="icp-main-heading">SUNDAY SERVICE</h1>
     <div class="icp-buttons">
       <a class="icp-btn" id="icp-btn-newsletter" href="https://mailchi.mp/ba9f7bd623da/this-week-at-icp-16540686" target="_blank">This Week&#39;s Newsletter</a>
       <a class="icp-btn" id="icp-btn-worship" href="https://icp.churchcenter.com/services/service_types/1235734/plans/before/today/public" target="_blank">Order of Worship</a>
@@ -354,6 +354,9 @@ body,
       <!-- Only shown when utm_content=card -->
       <a class="icp-btn" id="icp-btn-location" href="https://maps.app.goo.gl/RxN6Lzey4pCz5XDMA" target="_blank" style="display:none">Sunday Service Location</a>
     </div>
+    <p class="icp-info-note">
+      Visit us at <a href="https://www.icprague.cz" target="_blank" rel="noopener">icprague.cz</a>
+    </p>
   </div>
 
   <!-- GIVING VIEW -->
@@ -492,11 +495,13 @@ body,
     });
   }
 
-  // --- Show location button for take-home card ---
+  // --- Show location button for take-home card; hide title ---
   var params = new URLSearchParams(window.location.search);
   if (params.get('utm_content') === 'card') {
     var locBtn = document.getElementById('icp-btn-location');
     if (locBtn) locBtn.style.display = 'flex';
+    var mainHeading = document.getElementById('icp-main-heading');
+    if (mainHeading) mainHeading.style.display = 'none';
   }
 
   // --- Dynamic URLs from GitHub ---
