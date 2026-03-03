@@ -35,7 +35,9 @@ gtag('config', 'G-YL2P0BP685');
 .icp-wrap img.icp-logo {
   width: 50%;
   max-width: 300px;
-  height: auto;
+  height: auto !important;
+  max-height: none !important;
+  object-fit: contain;
   margin-bottom: 24px;
   display: block;
 }
@@ -113,7 +115,7 @@ gtag('config', 'G-YL2P0BP685');
 }
 
 .icp-wrap .icp-back {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 4px;
@@ -251,6 +253,8 @@ gtag('config', 'G-YL2P0BP685');
 #icp-view-czech {
   display: none;
   width: 100%;
+  flex-direction: column;
+  align-items: center;
 }
 
 .icp-script-hide {
@@ -356,9 +360,9 @@ gtag('config', 'G-YL2P0BP685');
 
   // --- View switching with virtual page views ---
   function icpShow(v) {
-    document.getElementById('icp-view-main').style.display   = v === 'main'   ? 'block' : 'none';
-    document.getElementById('icp-view-giving').style.display = v === 'giving' ? 'block' : 'none';
-    document.getElementById('icp-view-czech').style.display  = v === 'czech'  ? 'block' : 'none';
+    document.getElementById('icp-view-main').style.display   = v === 'main'   ? 'flex' : 'none';
+    document.getElementById('icp-view-giving').style.display = v === 'giving' ? 'flex' : 'none';
+    document.getElementById('icp-view-czech').style.display  = v === 'czech'  ? 'flex' : 'none';
     var titles = { main: 'Sunday Service', giving: 'Supporting ICP', czech: 'Czech Bank Transfer' };
     var paths  = { main: '/welcome', giving: '/welcome#giving', czech: '/welcome#czech' };
     if (typeof gtag === 'function') {
