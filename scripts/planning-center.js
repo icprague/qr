@@ -331,4 +331,123 @@ async function updateModeratorInPlanItems() {
   return { moderatorName, updatedCount };
 }
 
-module.exports = { getModeratorInfo, updateModeratorInPlanItems };
+// ---------------------------------------------------------------------------
+// Planning Center sermon title write-back
+// ---------------------------------------------------------------------------
+
+/**
+ * Read sermon-info.json and write the formatted sermon title + scripture
+ * into the plan item whose title contains "Sermon" for the upcoming Sunday.
+ *
+ * The plan item title is updated to:
+ *   "Sermon - Sermon Title (Scripture)"
+ *
+ * Subsequent runs safely overwrite the previous value because the regex
+ * matches "Sermon - ..." or plain "Sermon".
+ *
+ * @returns {{ formatted: string|null, updatedCount: number }}
+ */
+async function updateSermonInPlanItems() {
+  const fs = require('fs');
+  const path = require('path');
+
+  const { PLANNING_CENTER_APP_ID, PLANNING_CENTER_SECRET } = process.env;
+  if (!PLANNING_CENTER_APP_ID || !PLANNING_CENTER_SECRET) {
+    throw new Error('Planning Center credentials not configured');
+  }
+
+  // Read sermon info from JSON (written by update-sermon-info.js on Friday)
+  const sermonFile = path.resolve(__dirname, '..', 'sermon-info.json');
+  let sermonInfo;
+  try {
+    sermonInfo = JSON.parse(fs.readFileSync(sermonFile, 'utf-8'));
+  } catch (err) {
+    console.log(`Could not read sermon-info.json: ${err.message}`);
+    return { formatted: null, updatedCount: 0 };
+  }
+
+  const formatted = sermonInfo.formatted;
+  if (!formatted) {
+    console.log('No sermon info available in sermon-info.json — skipping sermon plan item update.');
+    return { formatted: null, updatedCount: 0 };
+  }
+
+  console.log(`Sermon info from newsletter: "${formatted}"`);
+
+  const sunday = getUpcomingSunday();
+  const dateStr = sunday.toISOString().split('T')[0];
+  const authHeader =
+    'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
+  const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
+
+  console.log(`Updating sermon plan item for upcoming Sunday: ${dateStr}`);
+
+  // Get service type
+  const serviceTypesRaw = await fetch(
+    'https://api.planningcenteronline.com/services/v2/service_types',
+    { headers }
+  );
+  const serviceTypes = JSON.parse(serviceTypesRaw);
+  if (!serviceTypes.data?.length) throw new Error('No service types found.');
+  const serviceTypeId = serviceTypes.data[0].id;
+
+  // Get upcoming plans
+  const plansRaw = await fetch(
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=future&per_page=5`,
+    { headers }
+  );
+  const plans = JSON.parse(plansRaw);
+  if (!plans.data?.length) throw new Error('No upcoming plans found.');
+
+  let targetPlan = plans.data[0];
+  for (const plan of plans.data) {
+    const planDate = plan.attributes.sort_date || plan.attributes.dates;
+    if (planDate && planDate.startsWith(dateStr)) { targetPlan = plan; break; }
+  }
+  console.log(`Plan: ${targetPlan.attributes.dates} (ID: ${targetPlan.id})`);
+
+  // Fetch plan items
+  const itemsRaw = await fetch(
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
+    { headers }
+  );
+  const items = JSON.parse(itemsRaw);
+
+  // Match items whose title starts with "Sermon" (case-insensitive)
+  // Handles: "Sermon", "Sermon - Previous Title (Previous Scripture)"
+  const sermonPattern = /^Sermon(\s*-\s*.*)?$/i;
+  const newTitle = `Sermon - ${formatted}`;
+  let updatedCount = 0;
+
+  for (const item of items.data || []) {
+    const title = item.attributes.title || '';
+    if (!sermonPattern.test(title.trim())) continue;
+
+    if (title.trim() === newTitle) {
+      console.log(`  [${item.id}] "${title}" — already current, skipping`);
+      continue;
+    }
+
+    console.log(`  [${item.id}] "${title}"`);
+    console.log(`       → "${newTitle}"`);
+
+    await httpPatch(
+      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${item.id}`,
+      { data: { type: 'Item', id: item.id, attributes: { title: newTitle } } },
+      authHeader
+    );
+
+    console.log(`       ✓ Updated`);
+    updatedCount++;
+  }
+
+  if (updatedCount === 0) {
+    console.log('No sermon items needed updating.');
+  } else {
+    console.log(`\nUpdated ${updatedCount} sermon plan item(s).`);
+  }
+
+  return { formatted, updatedCount };
+}
+
+module.exports = { getModeratorInfo, updateModeratorInPlanItems, updateSermonInPlanItems };
