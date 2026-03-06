@@ -442,9 +442,12 @@ body,
     var titles = { main: 'Sunday Service', giving: 'Supporting ICP', czech: 'Czech Bank Transfer' };
     var paths  = { main: '/welcome', giving: '/welcome#giving', czech: '/welcome#czech' };
     if (typeof gtag === 'function') {
+      // For the initial main view, use the real URL so UTM params are preserved for source attribution.
+      // For sub-views (giving, czech), use the virtual path since UTMs were already captured.
+      var loc = (v === 'main') ? window.location.href : window.location.origin + paths[v];
       gtag('event', 'page_view', {
         page_title: titles[v],
-        page_location: window.location.origin + paths[v]
+        page_location: loc
       });
     }
   }
