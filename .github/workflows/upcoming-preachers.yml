@@ -1,0 +1,25 @@
+name: "Upcoming Preachers"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upcoming-preachers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Print upcoming preachers (next 6 months)
+        env:
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+        run: node scripts/upcoming-preachers.js
