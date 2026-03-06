@@ -147,12 +147,14 @@ async function main() {
     const displayDate = formatDate(planDate ? planDate.substring(0, 10) : null);
     const planTitle = plan.attributes.title ? ` — ${plan.attributes.title}` : '';
 
-    const teamRaw = await fetch(
-      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/team_members?per_page=100`,
-      { headers }
-    );
-    const teamData = JSON.parse(teamRaw);
-    const members = teamData.data || [];
+    const members = [];
+    let teamUrl = `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/team_members?per_page=100`;
+    while (teamUrl) {
+      const teamRaw = await fetch(teamUrl, { headers });
+      const teamData = JSON.parse(teamRaw);
+      members.push(...(teamData.data || []));
+      teamUrl = teamData.links?.next || null;
+    }
 
     // Find preacher — check team_position_name against keywords
     let preacher = null;
