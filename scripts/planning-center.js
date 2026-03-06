@@ -150,7 +150,7 @@ async function getModeratorInfo() {
 
   // Get team members
   const teamMembersRaw = await fetch(
-    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`,
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members?per_page=100`,
     { headers }
   );
   const teamMembers = JSON.parse(teamMembersRaw);
@@ -265,7 +265,7 @@ async function updateModeratorInPlanItems() {
 
   // Find the moderator from assigned team members (skip status 'D' = declined)
   const teamMembersRaw = await fetch(
-    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`,
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members?per_page=100`,
     { headers }
   );
   const teamMembers = JSON.parse(teamMembersRaw);
