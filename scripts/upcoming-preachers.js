@@ -90,8 +90,8 @@ async function main() {
 
   const cutoff = sixMonthsFromNow();
 
-  // Keywords that identify a preacher/speaker role
-  const preacherKeywords = ['preach', 'speaker', 'sermon', 'message', 'pastor', 'teaching', 'teacher'];
+  // Match the exact "Preacher" position name used in Planning Center
+  const isPreacher = (position) => position.toLowerCase() === 'preacher';
 
   // 1. Get service types
   const serviceTypesRaw = await fetch(
@@ -158,8 +158,8 @@ async function main() {
     let preacher = null;
     for (const member of members) {
       if (member.attributes.status === 'D') continue; // declined
-      const position = (member.attributes.team_position_name || '').toLowerCase();
-      if (preacherKeywords.some((kw) => position.includes(kw))) {
+      const position = member.attributes.team_position_name || '';
+      if (isPreacher(position)) {
         preacher = member.attributes.name;
         break;
       }
