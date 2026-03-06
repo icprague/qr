@@ -81,10 +81,10 @@ async function main() {
   }
   console.log(`Plan: "${targetPlan.attributes.title || '(no title)'}" — ${targetPlan.attributes.dates} (ID: ${targetPlan.id})\n`);
 
-  // 3. Fetch team members (assigned) and needed positions (unassigned) in parallel
+  // 3. Fetch team members (all statuses) and needed positions in parallel
   const [tmRaw, npRaw] = await Promise.all([
     fetch(
-      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members`,
+      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members?per_page=100&include=team`,
       { headers }
     ),
     fetch(
@@ -95,11 +95,23 @@ async function main() {
   const teamMembers = JSON.parse(tmRaw);
   const neededPositions = JSON.parse(npRaw);
 
-  console.log('=== ASSIGNED TEAM MEMBERS ===');
+  // Status legend: C=Confirmed, U=Unconfirmed, D=Declined, P=Pending
+  const statusLabels = { C: 'Confirmed', U: 'Unconfirmed', D: 'Declined', P: 'Pending' };
+
+  console.log('=== ALL TEAM MEMBERS (any status) ===');
   if (teamMembers.data?.length) {
     for (const m of teamMembers.data) {
-      const status = m.attributes.status ? ` [${m.attributes.status}]` : '';
-      console.log(`  [${m.id}]${status} ${m.attributes.name} — position: "${m.attributes.team_position_name}"`);
+      const s = m.attributes.status || '?';
+      const label = statusLabels[s] || s;
+      const team = m.attributes.team_position_name || '(no position)';
+      console.log(`  [${m.id}] [${s} - ${label}] ${m.attributes.name} — position: "${team}"`);
+    }
+    console.log(`\n  Total members: ${teamMembers.data.length}`);
+    if (teamMembers.meta?.total_count) {
+      console.log(`  API total_count: ${teamMembers.meta.total_count}`);
+    }
+    if (teamMembers.links?.next) {
+      console.log(`  WARNING: More pages available (not all members shown)`);
     }
   } else {
     console.log('  (none found)');
