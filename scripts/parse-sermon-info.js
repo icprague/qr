@@ -71,13 +71,15 @@ function extractSermonInfo(html) {
 
     if (!inThisSundaySection) continue;
 
-    // Once we're in the "This Sunday" section, look for H2 and H3 tags
-    // If we hit another major heading (H1) that isn't "This Sunday", stop
+    // Once we're in the "This Sunday" section, look for H2 and H3 tags.
+    // Only treat a non-"This Sunday" H1 as a section boundary if we've already
+    // found the sermon title — the series name (H1) lives *inside* the section,
+    // before the sermon title (H2), so we must not bail out on it.
     const h1Matches = block.match(/<h1[^>]*>(.*?)<\/h1>/gi) || [];
     for (const h1 of h1Matches) {
       const text = cleanHtml(h1);
-      if (text && !/this\s+sunday/i.test(text)) {
-        // We've left the "This Sunday" section
+      if (text && !/this\s+sunday/i.test(text) && sermonTitle) {
+        // We've left the "This Sunday" section (series-name H1 handled above)
         return { sermonTitle, scripture };
       }
     }
