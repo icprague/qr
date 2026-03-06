@@ -113,6 +113,18 @@ async function sendFailureEmail(campaignSubject, campaignSendTime) {
   console.log(`Failure/reminder email sent to ${FAIL_EMAIL}`);
 }
 
+/**
+ * Check whether it's past the final retry hour in Prague timezone.
+ * The workflow runs at 3:15, 4:15, 5:15 PM Prague. At 5:15 PM (hour 17)
+ * it's the last attempt, so we send the fail email. Earlier runs exit quietly.
+ */
+function isLastAttempt() {
+  const pragueHour = Number(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague', hour: 'numeric', hour12: false })
+  );
+  return pragueHour >= 17;
+}
+
 async function main() {
   console.log(`Using Mailchimp data center: ${dc}`);
   console.log('Fetching most recent sent campaign...');
@@ -137,9 +149,13 @@ async function main() {
 
   // --- Same-day check ---
   if (!SKIP_DATE_CHECK && sendTime && !isSentToday(sendTime)) {
-    console.error('\nThe latest campaign was NOT sent today. Newsletter link will not be updated.');
-    await sendFailureEmail(subject, sendTime);
-    process.exit(1);
+    if (isLastAttempt()) {
+      console.error('\nNewsletter was not sent today (final attempt). Sending failure email.');
+      await sendFailureEmail(subject, sendTime);
+      process.exit(1);
+    }
+    console.log('\nNewsletter not sent yet. Will retry at next scheduled run.');
+    process.exit(0);
   }
 
   if (!archiveUrl) {
