@@ -3,8 +3,8 @@
   Paste this entire file into a Squarespace Code Block.
 
   QR code UTM parameters:
-    Pew card:       ?utm_source=qr&utm_content=pew
-    Take-home card: ?utm_source=qr&utm_content=card  ← shows location button
+    Pew card:       ?utm_source=qr&utm_content=pew   OR  ?utm_source=pew
+    Take-home card: ?utm_source=qr&utm_content=card  OR  ?utm_source=card  ← shows location button
 -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -351,7 +351,7 @@ body,
       <a class="icp-btn" id="icp-btn-worship" href="https://icp.churchcenter.com/services/service_types/1235734/plans/before/today/public" target="_blank">Order of Worship</a>
       <a class="icp-btn" id="icp-btn-connect" href="https://icp.churchcenter.com/people/forms/576373" target="_blank">Connect With Us</a>
       <a class="icp-btn" href="javascript:void(0)" id="icp-btn-give-nav">Supporting ICP</a>
-      <!-- Only shown when utm_content=card -->
+      <!-- Only shown when utm_content=card or utm_source=card -->
       <a class="icp-btn" id="icp-btn-location" href="https://maps.app.goo.gl/RxN6Lzey4pCz5XDMA" target="_blank" style="display:none">Sunday Service Location</a>
     </div>
     <p class="icp-info-note">
@@ -497,7 +497,7 @@ body,
 
   // --- Show location button for take-home card; hide title ---
   var params = new URLSearchParams(window.location.search);
-  if (params.get('utm_content') === 'card') {
+  if (params.get('utm_content') === 'card' || params.get('utm_source') === 'card') {
     var locBtn = document.getElementById('icp-btn-location');
     if (locBtn) locBtn.style.display = 'flex';
     var mainHeading = document.getElementById('icp-main-heading');
