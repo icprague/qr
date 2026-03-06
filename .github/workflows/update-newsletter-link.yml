@@ -34,14 +34,9 @@ jobs:
           FAIL_EMAIL: ${{ secrets.FAIL_EMAIL }}
         run: node scripts/update-newsletter-link.js
 
-      - name: Extract sermon info from newsletter
-        env:
-          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
-        run: node scripts/update-sermon-info.js
-
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add newsletter-link.json sermon-info.json
-          git diff --staged --quiet || (git commit -m "chore: update newsletter link and sermon info [automated]" && git push)
+          git add newsletter-link.json
+          git diff --staged --quiet || (git commit -m "chore: update newsletter link [automated]" && git push)
