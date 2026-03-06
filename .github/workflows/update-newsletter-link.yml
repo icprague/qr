@@ -1,12 +1,11 @@
 name: Update Newsletter Link
 
 on:
-  # Schedule disabled until setup is complete. Uncomment to enable:
-  # schedule:
-  #   # Every Friday at 3:30 PM Prague time (Europe/Prague)
-  #   # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
-  #   # 3:30 PM CET = 14:30 UTC | 3:30 PM CEST = 13:30 UTC
-  #   - cron: '30 13 * * 5'
+  schedule:
+    # Every Friday at 3:30 PM Prague time (Europe/Prague)
+    # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
+    # 3:30 PM CET = 14:30 UTC | 3:30 PM CEST = 13:30 UTC
+    - cron: '30 14 * * 5'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
