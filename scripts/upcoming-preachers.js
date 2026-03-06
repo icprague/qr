@@ -65,10 +65,10 @@ function formatDate(dateStr) {
   });
 }
 
-/** Return a Date that is exactly 6 months from today. */
-function sixMonthsFromNow() {
+/** Return a Date offset by the given number of months from today. */
+function monthsFromNow(n) {
   const d = new Date();
-  d.setMonth(d.getMonth() + 6);
+  d.setMonth(d.getMonth() + n);
   return d;
 }
 
@@ -88,7 +88,8 @@ async function main() {
     Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
   const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
 
-  const cutoff = sixMonthsFromNow();
+  const pastCutoff = monthsFromNow(-6);
+  const futureCutoff = monthsFromNow(6);
 
   // Match the exact "Preacher" position name used in Planning Center
   const isPreacher = (position) => position.toLowerCase() === 'preacher';
@@ -108,37 +109,50 @@ async function main() {
   const serviceTypeName = serviceTypes.data[0].attributes.name;
   console.log(`Service type: ${serviceTypeName}\n`);
 
-  // 2. Fetch all future plans (paginate until we pass the 6-month cutoff)
-  const allPlans = [];
-  let nextUrl = `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=future&per_page=25&order=sort_date`;
-
-  while (nextUrl) {
-    const raw = await fetch(nextUrl, { headers });
-    const page = JSON.parse(raw);
-    if (!page.data || page.data.length === 0) break;
-
-    for (const plan of page.data) {
-      const sortDate = plan.attributes.sort_date || plan.attributes.dates;
-      if (!sortDate) { allPlans.push(plan); continue; }
-      const planDate = new Date(sortDate.length === 10 ? sortDate + 'T12:00:00Z' : sortDate);
-      if (planDate > cutoff) break;
-      allPlans.push(plan);
+  // Helper: paginate plans in one direction, stopping at the given date boundary
+  async function fetchPlans(filter, stopBeyond) {
+    const plans = [];
+    const order = filter === 'past' ? '-sort_date' : 'sort_date';
+    let nextUrl = `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=${filter}&per_page=25&order=${order}`;
+    while (nextUrl) {
+      const raw = await fetch(nextUrl, { headers });
+      const page = JSON.parse(raw);
+      if (!page.data || page.data.length === 0) break;
+      let done = false;
+      for (const plan of page.data) {
+        const sortDate = plan.attributes.sort_date || plan.attributes.dates;
+        if (sortDate) {
+          const d = new Date(sortDate.length === 10 ? sortDate + 'T12:00:00Z' : sortDate);
+          if (filter === 'past' ? d < stopBeyond : d > stopBeyond) { done = true; break; }
+        }
+        plans.push(plan);
+      }
+      if (done) break;
+      const last = page.data[page.data.length - 1];
+      const lastDate = last.attributes.sort_date || last.attributes.dates;
+      if (lastDate) {
+        const ld = new Date(lastDate.length === 10 ? lastDate + 'T12:00:00Z' : lastDate);
+        if (filter === 'past' ? ld < stopBeyond : ld > stopBeyond) break;
+      }
+      nextUrl = page.links?.next || null;
     }
-
-    // Stop paginating if the last plan on this page is already past our cutoff
-    const last = page.data[page.data.length - 1];
-    const lastDate = last.attributes.sort_date || last.attributes.dates;
-    if (lastDate && new Date(lastDate.length === 10 ? lastDate + 'T12:00:00Z' : lastDate) > cutoff) break;
-
-    nextUrl = page.links?.next || null;
+    return plans;
   }
 
+  // 2. Fetch past 6 months + future 6 months, then sort chronologically
+  const [pastPlans, futurePlans] = await Promise.all([
+    fetchPlans('past', pastCutoff),
+    fetchPlans('future', futureCutoff),
+  ]);
+  // pastPlans came back newest-first; reverse so the combined list is oldest-first
+  const allPlans = [...pastPlans.reverse(), ...futurePlans];
+
   if (allPlans.length === 0) {
-    console.log('No upcoming plans found in the next 6 months.');
+    console.log('No plans found in the 6-month window.');
     return;
   }
 
-  console.log(`Upcoming preachers for the next 6 months (${allPlans.length} services):`);
+  console.log(`Preachers for the past & next 6 months (${allPlans.length} services):`);
   console.log('='.repeat(60));
 
   // 3. For each plan, fetch team members and find the preacher
