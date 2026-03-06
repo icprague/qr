@@ -113,7 +113,18 @@ async function sendFailureEmail(campaignSubject, campaignSendTime) {
   console.log(`Failure/reminder email sent to ${FAIL_EMAIL}`);
 }
 
-async function main() {
+const MAX_RETRIES = 6;
+const RETRY_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Try to fetch today's newsletter. Returns the campaign object if found,
+ * or null if the latest campaign was not sent today.
+ */
+async function tryFetchTodaysNewsletter() {
   console.log(`Using Mailchimp data center: ${dc}`);
   console.log('Fetching most recent sent campaign...');
 
@@ -127,20 +138,49 @@ async function main() {
   }
 
   const campaign = data.campaigns[0];
-  const archiveUrl = campaign.long_archive_url || campaign.archive_url;
   const subject = campaign.settings?.subject_line || '(no subject)';
   const sendTime = campaign.send_time || '';
 
   console.log(`Latest campaign: "${subject}"`);
   console.log(`  Sent: ${sendTime}`);
-  console.log(`  Archive URL: ${archiveUrl}`);
 
-  // --- Same-day check ---
   if (!SKIP_DATE_CHECK && sendTime && !isSentToday(sendTime)) {
-    console.error('\nThe latest campaign was NOT sent today. Newsletter link will not be updated.');
+    return null; // Not sent today
+  }
+
+  return campaign;
+}
+
+async function main() {
+  let campaign = await tryFetchTodaysNewsletter();
+
+  // Retry loop: check every 30 minutes, up to 6 times
+  if (!campaign && !SKIP_DATE_CHECK) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      console.log(`\nNewsletter not sent yet. Retry ${attempt}/${MAX_RETRIES} in 30 minutes...`);
+      await sleep(RETRY_INTERVAL_MS);
+      campaign = await tryFetchTodaysNewsletter();
+      if (campaign) break;
+    }
+  }
+
+  if (!campaign) {
+    const data = await mailchimpGet(
+      '/campaigns?sort_field=send_time&sort_dir=DESC&count=1&status=sent'
+    );
+    const latest = data.campaigns?.[0];
+    const subject = latest?.settings?.subject_line || '(no subject)';
+    const sendTime = latest?.send_time || '';
+    console.error(`\nNewsletter was not sent today after ${MAX_RETRIES} retries. Sending failure email.`);
     await sendFailureEmail(subject, sendTime);
     process.exit(1);
   }
+
+  const archiveUrl = campaign.long_archive_url || campaign.archive_url;
+  const subject = campaign.settings?.subject_line || '(no subject)';
+  const sendTime = campaign.send_time || '';
+
+  console.log(`  Archive URL: ${archiveUrl}`);
 
   if (!archiveUrl) {
     console.error('Error: Campaign has no archive_url.');

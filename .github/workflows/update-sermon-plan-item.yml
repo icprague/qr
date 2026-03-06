@@ -3,18 +3,20 @@ name: "Write Sermon Title to Planning Center Order of Service"
 # Runs on Friday when the newsletter is available.
 # Reads sermon title + scripture from the Mailchimp newsletter and writes
 # it into the "Sermon" plan item in Planning Center.
+# If newsletter hasn't been sent yet, retries every 30 min up to 6 times.
 
 # Prague is UTC+1 (CET, winter) / UTC+2 (CEST, summer).
-#   3:30 PM CET = 14:30 UTC | 3:30 PM CEST = 13:30 UTC
+#   3:15 PM CET = 14:15 UTC | 3:15 PM CEST = 13:15 UTC
 
 on:
-  # schedule:
-  #   - cron: '30 14 * * 5'  # Friday ~3:30 PM Prague (CET)
+  schedule:
+    - cron: '15 14 * * 5'  # Friday ~3:15 PM Prague (CET)
   workflow_dispatch: # Manual trigger from the Actions tab
 
 jobs:
   update-sermon-plan-item:
     runs-on: ubuntu-latest
+    timeout-minutes: 200
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,5 +34,7 @@ jobs:
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
-          SKIP_DATE_CHECK: 'true'
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          FAIL_EMAIL: ${{ secrets.FAIL_EMAIL }}
         run: node scripts/update-sermon-plan-item.js
