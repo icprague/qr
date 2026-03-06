@@ -2,11 +2,13 @@ name: Update Newsletter Link
 
 on:
   schedule:
-    # Every Friday at 3:15 PM Prague time (Europe/Prague)
+    # Every Friday at 3:15, 4:15, 5:15 PM Prague time (Europe/Prague)
     # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
-    # 3:15 PM CET = 14:15 UTC | 3:15 PM CEST = 13:15 UTC
-    # If newsletter hasn't been sent yet, retries every 30 min up to 6 times.
-    - cron: '15 14 * * 5'
+    # Script exits quietly if newsletter not sent yet (retries next hour).
+    # At 5:15 PM (last attempt), sends failure email if still not found.
+    - cron: '15 14 * * 5'  # ~3:15 PM Prague (CET)
+    - cron: '15 15 * * 5'  # ~4:15 PM Prague (CET)
+    - cron: '15 16 * * 5'  # ~5:15 PM Prague (CET)
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -15,7 +17,6 @@ permissions:
 jobs:
   update-newsletter:
     runs-on: ubuntu-latest
-    timeout-minutes: 200
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

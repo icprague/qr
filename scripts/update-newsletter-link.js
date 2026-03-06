@@ -113,18 +113,19 @@ async function sendFailureEmail(campaignSubject, campaignSendTime) {
   console.log(`Failure/reminder email sent to ${FAIL_EMAIL}`);
 }
 
-const MAX_RETRIES = 6;
-const RETRY_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Check whether it's past the final retry hour in Prague timezone.
+ * The workflow runs at 3:15, 4:15, 5:15 PM Prague. At 5:15 PM (hour 17)
+ * it's the last attempt, so we send the fail email. Earlier runs exit quietly.
+ */
+function isLastAttempt() {
+  const pragueHour = Number(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague', hour: 'numeric', hour12: false })
+  );
+  return pragueHour >= 17;
 }
 
-/**
- * Try to fetch today's newsletter. Returns the campaign object if found,
- * or null if the latest campaign was not sent today.
- */
-async function tryFetchTodaysNewsletter() {
+async function main() {
   console.log(`Using Mailchimp data center: ${dc}`);
   console.log('Fetching most recent sent campaign...');
 
@@ -138,49 +139,24 @@ async function tryFetchTodaysNewsletter() {
   }
 
   const campaign = data.campaigns[0];
+  const archiveUrl = campaign.long_archive_url || campaign.archive_url;
   const subject = campaign.settings?.subject_line || '(no subject)';
   const sendTime = campaign.send_time || '';
 
   console.log(`Latest campaign: "${subject}"`);
   console.log(`  Sent: ${sendTime}`);
-
-  if (!SKIP_DATE_CHECK && sendTime && !isSentToday(sendTime)) {
-    return null; // Not sent today
-  }
-
-  return campaign;
-}
-
-async function main() {
-  let campaign = await tryFetchTodaysNewsletter();
-
-  // Retry loop: check every 30 minutes, up to 6 times
-  if (!campaign && !SKIP_DATE_CHECK) {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      console.log(`\nNewsletter not sent yet. Retry ${attempt}/${MAX_RETRIES} in 30 minutes...`);
-      await sleep(RETRY_INTERVAL_MS);
-      campaign = await tryFetchTodaysNewsletter();
-      if (campaign) break;
-    }
-  }
-
-  if (!campaign) {
-    const data = await mailchimpGet(
-      '/campaigns?sort_field=send_time&sort_dir=DESC&count=1&status=sent'
-    );
-    const latest = data.campaigns?.[0];
-    const subject = latest?.settings?.subject_line || '(no subject)';
-    const sendTime = latest?.send_time || '';
-    console.error(`\nNewsletter was not sent today after ${MAX_RETRIES} retries. Sending failure email.`);
-    await sendFailureEmail(subject, sendTime);
-    process.exit(1);
-  }
-
-  const archiveUrl = campaign.long_archive_url || campaign.archive_url;
-  const subject = campaign.settings?.subject_line || '(no subject)';
-  const sendTime = campaign.send_time || '';
-
   console.log(`  Archive URL: ${archiveUrl}`);
+
+  // --- Same-day check ---
+  if (!SKIP_DATE_CHECK && sendTime && !isSentToday(sendTime)) {
+    if (isLastAttempt()) {
+      console.error('\nNewsletter was not sent today (final attempt). Sending failure email.');
+      await sendFailureEmail(subject, sendTime);
+      process.exit(1);
+    }
+    console.log('\nNewsletter not sent yet. Will retry at next scheduled run.');
+    process.exit(0);
+  }
 
   if (!archiveUrl) {
     console.error('Error: Campaign has no archive_url.');

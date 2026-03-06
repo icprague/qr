@@ -37,8 +37,6 @@ const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 const FAIL_EMAIL = process.env.FAIL_EMAIL;
 const SKIP_DATE_CHECK = process.env.SKIP_DATE_CHECK === 'true';
 
-const MAX_RETRIES = 6;
-const RETRY_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 if (!MAILCHIMP_API_KEY) { console.error('Error: MAILCHIMP_API_KEY is not set.'); process.exit(1); }
 if (!PLANNING_CENTER_APP_ID || !PLANNING_CENTER_SECRET) {
@@ -157,12 +155,16 @@ function isSentToday(sendTimeStr) {
   return sendDatePrague === nowPrague;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Check whether it's past the final retry hour in Prague timezone.
+ * The workflow runs at 3:15, 4:15, 5:15 PM Prague. At 5:15 PM (hour 17)
+ * it's the last attempt, so we send the fail email. Earlier runs exit quietly.
+ */
+function isLastAttempt() {
+  const pragueHour = Number(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague', hour: 'numeric', hour12: false })
+  );
+  return pragueHour >= 17;
 }
 
 async function sendFailureEmail(campaignSubject, campaignSendTime) {
@@ -201,10 +203,8 @@ async function sendFailureEmail(campaignSubject, campaignSendTime) {
 // Step 1: Fetch newsletter and extract sermon info
 // ---------------------------------------------------------------------------
 
-/**
- * Try to fetch today's newsletter. Returns the campaign if sent today, null otherwise.
- */
-async function tryFetchTodaysCampaign() {
+async function fetchSermonInfoFromNewsletter() {
+  console.log('=== STEP 1: FETCH SERMON INFO FROM NEWSLETTER ===\n');
   console.log(`Using Mailchimp data center: ${mc_dc}`);
 
   const data = await mailchimpGet('/campaigns?sort_field=send_time&sort_dir=DESC&count=1&status=sent');
@@ -212,39 +212,19 @@ async function tryFetchTodaysCampaign() {
 
   const campaign = data.campaigns[0];
   const sendTime = campaign.send_time || '';
-  console.log(`Campaign: "${campaign.settings?.subject_line}" (ID: ${campaign.id})`);
+  const subject = campaign.settings?.subject_line || '(no subject)';
+  console.log(`Campaign: "${subject}" (ID: ${campaign.id})`);
   console.log(`  Sent: ${sendTime}`);
 
+  // Same-day check
   if (!SKIP_DATE_CHECK && sendTime && !isSentToday(sendTime)) {
-    return null;
-  }
-
-  return campaign;
-}
-
-async function fetchSermonInfoFromNewsletter() {
-  console.log('=== STEP 1: FETCH SERMON INFO FROM NEWSLETTER ===\n');
-
-  let campaign = await tryFetchTodaysCampaign();
-
-  // Retry loop: check every 30 minutes, up to 6 times
-  if (!campaign && !SKIP_DATE_CHECK) {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      console.log(`\nNewsletter not sent yet. Retry ${attempt}/${MAX_RETRIES} in 30 minutes...`);
-      await sleep(RETRY_INTERVAL_MS);
-      campaign = await tryFetchTodaysCampaign();
-      if (campaign) break;
+    if (isLastAttempt()) {
+      console.error('\nNewsletter was not sent today (final attempt). Sending failure email.');
+      await sendFailureEmail(subject, sendTime);
+      process.exit(1);
     }
-  }
-
-  if (!campaign) {
-    const data = await mailchimpGet('/campaigns?sort_field=send_time&sort_dir=DESC&count=1&status=sent');
-    const latest = data.campaigns?.[0];
-    const subject = latest?.settings?.subject_line || '(no subject)';
-    const sendTime = latest?.send_time || '';
-    console.error(`\nNewsletter was not sent today after ${MAX_RETRIES} retries. Sending failure email.`);
-    await sendFailureEmail(subject, sendTime);
-    process.exit(1);
+    console.log('\nNewsletter not sent yet. Will retry at next scheduled run.');
+    process.exit(0);
   }
 
   console.log('Fetching campaign HTML...');
