@@ -123,7 +123,7 @@ gtag('config', 'G-YL2P0BP685');
   padding: 10px 20px;
   font-family: 'Raleway', sans-serif;
   font-weight: 600;
-  font-size: clamp(1rem, 3.5vw, 1.0625rem);
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
   color: #222a58 !important;
   text-decoration: none !important;
   border: 2px solid #222a58;
@@ -140,8 +140,8 @@ gtag('config', 'G-YL2P0BP685');
 
 .icp-wrap .icp-info-note {
   font-family: 'Raleway', sans-serif;
-  font-size: clamp(1rem, 3.5vw, 1.125rem);
-  color: #555;
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
+  color: #444;
   text-align: center;
   max-width: 480px;
   margin-bottom: 20px;
@@ -157,7 +157,7 @@ gtag('config', 'G-YL2P0BP685');
 .icp-wrap .icp-note {
   font-family: 'Raleway', sans-serif;
   font-weight: 400;
-  font-size: clamp(1rem, 3.5vw, 1.0625rem);
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
   color: #555;
   text-align: center;
   max-width: 480px;
@@ -187,7 +187,7 @@ gtag('config', 'G-YL2P0BP685');
   max-width: 480px;
   background: #f4f6fb;
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 8px 12px;
   margin-bottom: 16px;
 }
 
@@ -195,7 +195,7 @@ gtag('config', 'G-YL2P0BP685');
   width: 100%;
   border-collapse: collapse;
   font-family: 'Raleway', sans-serif;
-  font-size: clamp(1rem, 3.5vw, 1.125rem);
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
 }
 
 .icp-wrap .icp-bank-info tr {
@@ -207,17 +207,23 @@ gtag('config', 'G-YL2P0BP685');
 }
 
 .icp-wrap .icp-bank-info td {
-  padding: 8px 4px;
+  display: block;
+  padding: 0 4px;
   line-height: 1.4;
-  vertical-align: top;
+}
+
+.icp-wrap .icp-bank-info tr td:first-child {
+  padding-top: 10px;
+  padding-bottom: 2px;
+}
+
+.icp-wrap .icp-bank-info tr td:last-child {
+  padding-bottom: 10px;
 }
 
 .icp-wrap .icp-bank-info td:first-child {
-  color: #595959;
+  color: #333;
   font-weight: 600;
-  white-space: nowrap;
-  padding-right: 14px;
-  width: 1%;
 }
 
 .icp-wrap .icp-bank-info td:last-child {
@@ -230,17 +236,17 @@ gtag('config', 'G-YL2P0BP685');
 }
 
 .icp-wrap .icp-copy-btn {
-  margin-left: 10px;
-  padding: 3px 10px;
+  display: inline-block;
+  margin-top: 6px;
+  padding: 8px 20px;
   font-family: 'Raleway', sans-serif;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
   background: #222a58;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  vertical-align: middle;
   transition: background-color 0.2s ease;
 }
 
