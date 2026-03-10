@@ -282,10 +282,21 @@ async function main() {
   let skippedSongs = 0;
   let communionWarned = false;
 
-  // Note whether the plan already has an Announcements header (check before any changes).
+  // Check which headers already exist (before any changes) so we know what to create.
   const hasAnnouncementsHeader = allItems.some(
     (item) => item.attributes.item_type === 'header' && /^announcements/i.test(item.attributes.title)
   );
+  const hasScriptureReadingHeader = allItems.some(
+    (item) => item.attributes.item_type === 'header' && /^scripture reading$/i.test(item.attributes.title)
+  );
+
+  // Find the Benediction header (titled "Final Part" or already "Benediction") so we can
+  // delete everything that comes after it, regardless of title.
+  const benedictionHeader = allItems.find(
+    (item) => item.attributes.item_type === 'header' &&
+              (/^final part$/i.test(item.attributes.title) || /^benediction$/i.test(item.attributes.title))
+  );
+  const benedictionSeq = benedictionHeader ? benedictionHeader.attributes.sequence : Infinity;
 
   for (const item of allItems) {
     const attrs = item.attributes;
@@ -307,7 +318,21 @@ async function main() {
       continue;
     }
 
-    // Check if this item should be deleted
+    // Delete anything that appears after the Benediction header
+    if (attrs.sequence > benedictionSeq) {
+      console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — DELETE (after Benediction)`);
+      if (!DRY_RUN) {
+        await httpDelete(
+          `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${item.id}`,
+          authHeader
+        );
+        console.log('         ✓ Deleted');
+      }
+      deletedCount++;
+      continue;
+    }
+
+    // Check if this item should be deleted (by title)
     const shouldDelete =
       DELETE_RULES.some((re) => re.test(title)) ||
       (type === 'item' && DELETE_ITEM_ONLY_RULES.some((re) => re.test(title)));
@@ -370,33 +395,56 @@ async function main() {
     updatedCount++;
   }
 
-  // 5. Create "Announcements + Welcome Guests" header if the plan has none
+  // 5. Create missing headers
+  // Template requires:
+  //   - "Announcements + Welcome Guests" header before the Moderator item
+  //   - "Scripture Reading" header before the Scripture item
+  const headersToCreate = [];
   if (!hasAnnouncementsHeader) {
+    headersToCreate.push({ title: 'Announcements + Welcome Guests', beforeItem: /^moderator$/i, label: 'Moderator' });
+  }
+  if (!hasScriptureReadingHeader) {
+    headersToCreate.push({ title: 'Scripture Reading', beforeItem: /^scripture$/i, label: 'Scripture' });
+  }
+
+  if (headersToCreate.length > 0) {
     if (DRY_RUN) {
-      console.log('\n  [CREATE HEADER] "Announcements + Welcome Guests" before Moderator item — dry run, would POST');
-      createdCount++;
+      for (const h of headersToCreate) {
+        console.log(`\n  [CREATE HEADER] "${h.title}" before ${h.label} item — dry run, would POST`);
+        createdCount++;
+      }
     } else {
       // Re-fetch so sequence numbers reflect the deletions we just made
-      const refreshedRaw = await httpGet(
+      let refreshedRaw = await httpGet(
         `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
         { headers }
       );
-      const refreshedItems = JSON.parse(refreshedRaw).data || [];
-      const moderatorItem = refreshedItems.find(
-        (item) => item.attributes.item_type === 'item' && /^moderator$/i.test(item.attributes.title)
-      );
-      if (!moderatorItem) {
-        console.log('\n  ⚠️  Could not find "Moderator" item after processing — add "Announcements + Welcome Guests" header manually');
-      } else {
-        const seq = moderatorItem.attributes.sequence;
-        console.log(`\n  [CREATE HEADER] "Announcements + Welcome Guests" at sequence ${seq} (before Moderator)`);
+      let refreshedItems = JSON.parse(refreshedRaw).data || [];
+
+      for (const h of headersToCreate) {
+        const anchor = refreshedItems.find(
+          (item) => item.attributes.item_type === 'item' && h.beforeItem.test(item.attributes.title)
+        );
+        if (!anchor) {
+          console.log(`\n  ⚠️  Could not find "${h.label}" item after processing — add "${h.title}" header manually`);
+          continue;
+        }
+        const seq = anchor.attributes.sequence;
+        console.log(`\n  [CREATE HEADER] "${h.title}" at sequence ${seq} (before ${h.label})`);
         await httpPost(
           `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items`,
-          { data: { type: 'Item', attributes: { title: 'Announcements + Welcome Guests', item_type: 'header', sequence: seq } } },
+          { data: { type: 'Item', attributes: { title: h.title, item_type: 'header', sequence: seq } } },
           authHeader
         );
         console.log('         ✓ Created');
         createdCount++;
+
+        // Re-fetch after each insert so the next header gets correct sequences
+        refreshedRaw = await httpGet(
+          `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
+          { headers }
+        );
+        refreshedItems = JSON.parse(refreshedRaw).data || [];
       }
     }
   }
