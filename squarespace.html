@@ -187,48 +187,51 @@ gtag('config', 'G-YL2P0BP685');
   max-width: 480px;
   background: #f4f6fb;
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 16px 20px;
   margin-bottom: 16px;
+  text-align: center;
 }
 
-.icp-wrap .icp-bank-info table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: 'Raleway', sans-serif;
-  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
-}
-
-.icp-wrap .icp-bank-info tr {
+.icp-wrap .icp-bank-info .icp-field {
+  padding: 12px 0;
   border-bottom: 1px solid #dde2ef;
 }
 
-.icp-wrap .icp-bank-info tr:last-child {
+.icp-wrap .icp-bank-info .icp-field:last-child {
   border-bottom: none;
 }
 
-.icp-wrap .icp-bank-info td {
-  display: block;
-  padding: 0 4px;
+.icp-wrap .icp-bank-info .icp-field-label {
+  font-family: 'Raleway', sans-serif;
+  color: #555;
+  font-weight: 400;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.icp-wrap .icp-bank-info .icp-field-value {
+  font-family: 'Raleway', sans-serif;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
+  font-weight: 600;
+  color: #181c3a;
+}
+
+.icp-wrap .icp-bank-info .icp-field-hint {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #555;
+  margin-top: 4px;
   line-height: 1.4;
 }
 
-.icp-wrap .icp-bank-info tr td:first-child {
-  padding-top: 10px;
-  padding-bottom: 2px;
-}
-
-.icp-wrap .icp-bank-info tr td:last-child {
-  padding-bottom: 10px;
-}
-
-.icp-wrap .icp-bank-info td:first-child {
-  color: #333;
-  font-weight: 600;
-}
-
-.icp-wrap .icp-bank-info td:last-child {
-  color: #181c3a;
-  font-weight: 600;
+.icp-wrap .icp-save-qr-btn {
+  width: auto;
+  padding: 12px 28px;
+  margin-bottom: 20px;
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
 }
 
 .icp-wrap .icp-highlight {
@@ -236,16 +239,17 @@ gtag('config', 'G-YL2P0BP685');
 }
 
 .icp-wrap .icp-copy-btn {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 8px 20px;
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 0;
   font-family: 'Raleway', sans-serif;
   font-size: 1.125rem;
   font-weight: 600;
   background: #222a58;
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
@@ -370,8 +374,8 @@ body,
     <h1>SUPPORTING ICP</h1>
     <div class="icp-buttons">
       <a class="icp-btn" href="javascript:void(0)" id="icp-btn-czech-nav">Czech Bank Transfer (CZK)</a>
-      <a class="icp-btn" id="icp-btn-usd" href="https://giving.myamplify.io//app/giving/idp" target="_blank">
-        <span class="icp-btn-label">International &middot; Card (USD)</span>
+      <a class="icp-btn" id="icp-btn-usd" href="https://donate.stripe.com/3cI3cwcU2d4j3Bs1Ps0Ny00" target="_blank">
+        <span class="icp-btn-label">Card Payment</span>
         <span class="payment-icons" aria-hidden="true">
           <!-- Generic card -->
           <svg width="60" height="34" viewBox="0 0 60 34" xmlns="http://www.w3.org/2000/svg" aria-label="Credit card">
@@ -411,23 +415,21 @@ body,
   <!-- CZECH BANK VIEW -->
   <div id="icp-view-czech">
     <h1>Czech Bank Transfer (CZK)</h1>
-    <p class="icp-note">Screenshot this QR code and use it for QR payment in your banking app &mdash; or scan it directly from the app.</p>
+    <p class="icp-note">Save this QR code to your photos, then open your banking app and scan it from your photo library.</p>
     <img src="https://icprague.github.io/qr/qr_platba.png" alt="QR Platba – Czech bank transfer QR code" class="icp-qr-img">
     <p class="icp-qr-label">QR Platba</p>
+    <a id="icp-save-qr" class="icp-btn icp-save-qr-btn" href="https://icprague.github.io/qr/qr_platba.png" download="QR_Platba.png">Save QR Code to Photos</a>
     <div class="icp-bank-info">
-      <table>
-        <tr>
-          <td>Account number</td>
-          <td>
-            <span id="icp-acct-number">178324272/0300</span>
-            <button id="icp-copy-btn" class="icp-copy-btn" aria-label="Copy account number">Copy</button>
-          </td>
-        </tr>
-        <tr>
-          <td>Variabiln&iacute; symbol</td>
-          <td class="icp-highlight">1 &nbsp;&larr; use this to ensure the contribution is tax deductible</td>
-        </tr>
-      </table>
+      <div class="icp-field">
+        <div class="icp-field-label">Account number</div>
+        <div class="icp-field-value" id="icp-acct-number">178324272/0300</div>
+        <button id="icp-copy-btn" class="icp-copy-btn" aria-label="Copy account number">Copy Account Number</button>
+      </div>
+      <div class="icp-field">
+        <div class="icp-field-label">Variabiln&iacute; symbol</div>
+        <div class="icp-field-value icp-highlight">1</div>
+        <div class="icp-field-hint">Use this to ensure your contribution is tax deductible</div>
+      </div>
     </div>
     <a class="icp-back" href="javascript:void(0)" id="icp-btn-back-giving">&larr; Back to Giving Options</a>
   </div>
@@ -504,6 +506,26 @@ body,
     });
   }
 
+  // --- Save QR code (cross-origin needs fetch+blob) ---
+  var saveBtn = document.getElementById('icp-save-qr');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (typeof gtag === 'function') gtag('event', 'button_click', { button_name: 'save_qr' });
+      fetch(saveBtn.href)
+        .then(function (r) { return r.blob(); })
+        .then(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'QR_Platba.png';
+          a.click();
+          URL.revokeObjectURL(a.href);
+          saveBtn.textContent = '✓ Saved';
+          setTimeout(function () { saveBtn.textContent = 'Save QR Code to Photos'; }, 2000);
+        });
+    });
+  }
+
   // --- Show location button for take-home card; hide title ---
   var params = new URLSearchParams(window.location.search);
   if (params.get('utm_content') === 'card' || params.get('utm_source') === 'card') {
@@ -529,6 +551,7 @@ body,
   fetchJSON('config.json', function (c) {
     if (c.orderOfWorshipUrl) document.getElementById('icp-btn-worship').href = c.orderOfWorshipUrl;
     if (c.connectCardUrl)    document.getElementById('icp-btn-connect').href = c.connectCardUrl;
+    if (c.giveOnlineUrl)     document.getElementById('icp-btn-usd').href = c.giveOnlineUrl;
   });
 
 })();
