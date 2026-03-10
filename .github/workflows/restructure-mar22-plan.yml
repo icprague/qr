@@ -1,13 +1,17 @@
-name: "Restructure March 15 Plan (one-time)"
+name: "Restructure Sunday Plan"
 
-# One-time workflow to restructure the March 15, 2026 plan to match
-# the new service structure (without Communion).
+# Restructures a Sunday plan to match the standard service template.
+# Detects communion Sundays automatically from the plan title.
 #
 # Run with mode = "dry-run" first to preview changes, then "apply" to commit them.
 
 on:
   workflow_dispatch:
     inputs:
+      date:
+        description: 'Sunday date to restructure (YYYY-MM-DD)'
+        required: true
+        type: string
       mode:
         description: 'dry-run = preview only, apply = actually update Planning Center'
         required: true
@@ -32,10 +36,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restructure March 15 plan
+      - name: Restructure plan
         env:
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+          TARGET_DATE: ${{ inputs.date }}
         run: |
           if [ "${{ inputs.mode }}" = "apply" ]; then
             node scripts/restructure-mar22-plan.js --apply
