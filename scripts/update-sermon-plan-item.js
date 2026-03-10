@@ -304,11 +304,12 @@ async function writeSermonToPlanningCenter(sermonTitle, scripture) {
     }
   }
 
-  // Format preacher name: prefix with "Pastor" if the position indicates pastor
+  // Format preacher name: only Mike Weiglein gets the "Pastor" prefix
   let formattedPreacher = null;
   if (preacherName) {
-    const isPastor = /pastor/i.test(preacherPosition);
-    formattedPreacher = isPastor ? `Pastor ${preacherName}` : preacherName;
+    formattedPreacher = /^mike\s+weiglein$/i.test(preacherName)
+      ? `Pastor ${preacherName}`
+      : preacherName;
     console.log(`Preacher: ${formattedPreacher} (position: ${preacherPosition})`);
   } else {
     console.log('Preacher: not assigned');
