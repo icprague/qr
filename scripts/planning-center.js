@@ -210,17 +210,16 @@ async function getModeratorInfo() {
 // ---------------------------------------------------------------------------
 
 /**
- * Look up the moderator's name for the upcoming Sunday and write it into every
- * plan item whose title contains "(Moderator...)" — e.g.:
+ * Look up the moderator's name for the upcoming Sunday and write it into the
+ * plan item. Supports both formats:
  *
- *   " Announcements + Welcome Guests (Moderator)"
- *     →  " Announcements + Welcome Guests (Moderator - Jane Smith)"
+ *   Old: "Announcements + Welcome Guests (Moderator)"
+ *      → "Announcements + Welcome Guests (Moderator - Jane Smith)"
  *
- * If no one is assigned to the Moderator position the text becomes:
- *   " Announcements + Welcome Guests (Moderator - no moderator scheduled)"
+ *   New: "Moderator"
+ *      → "Moderator - Jane Smith"
  *
- * Subsequent runs safely overwrite whatever name was written previously
- * because the regex matches "(Moderator...)" regardless of current content.
+ * Subsequent runs safely overwrite whatever name was written previously.
  *
  * @returns {{ moderatorName: string|null, updatedCount: number }}
  */
@@ -293,17 +292,30 @@ async function updateModeratorInPlanItems() {
   );
   const items = JSON.parse(itemsRaw);
 
-  // Only update the Announcements item — match titles that contain both
-  // "Announcements" and "(Moderator...)" to avoid touching anything else.
-  const announcementsPattern = /announcements/i;
-  const moderatorPattern = /\(Moderator[^)]*\)/i;
+  // Match either the old format "Announcements + Welcome Guests (Moderator...)"
+  // or the new restructured format where the item is just titled "Moderator" / "Moderator - Name".
+  const oldPattern = /\(Moderator[^)]*\)/i;
+  const newPattern = /^Moderator(?: - .*)?$/i;
   let updatedCount = 0;
+
+  const newReplacementText = moderatorName
+    ? `Moderator - ${moderatorName}`
+    : 'Moderator - no moderator scheduled';
 
   for (const item of items.data || []) {
     const title = item.attributes.title || '';
-    if (!announcementsPattern.test(title) || !moderatorPattern.test(title)) continue;
+    let newTitle;
 
-    const newTitle = title.replace(moderatorPattern, replacementText);
+    if (/announcements/i.test(title) && oldPattern.test(title)) {
+      // Old format: "Announcements + Welcome Guests (Moderator)" → replace parenthetical
+      newTitle = title.replace(oldPattern, replacementText);
+    } else if (newPattern.test(title)) {
+      // New format: "Moderator" → "Moderator - Name"
+      newTitle = newReplacementText;
+    } else {
+      continue;
+    }
+
     if (newTitle === title) {
       console.log(`  [${item.id}] "${title}" — already current, skipping`);
       continue;
