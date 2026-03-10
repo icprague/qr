@@ -125,12 +125,18 @@ function httpPatch(url, body, authHeader) {
 // Songs are never deleted regardless.
 const DELETE_RULES = [
   /^pre service$/i,
-  /^pre-?service slides$/i,
+  /^pre-?service slides?$/i,        // matches "slides" and "slide"
   /^countdown$/i,
-  /^congregational prayer.*ushers/i,  // item form — the header is kept & renamed
+  /^congregational prayer.*ushers/i, // item form — the header is kept & renamed
   /^post service$/i,
   /^exit song$/i,
-  /^post-?service slides$/i,
+  /^post-?service slides?$/i,        // matches "slides" and "slide"
+];
+
+// These patterns delete ONLY items of type 'item', never headers.
+// (Prevents deleting a correctly-named header on re-runs.)
+const DELETE_ITEM_ONLY_RULES = [
+  /^benediction$/i, // extra Benediction item — the Benediction *header* comes from renaming "Final Part"
 ];
 
 // Each rule: { match (regex on title), newTitle, newDescription (optional) }
@@ -139,8 +145,10 @@ const DELETE_RULES = [
 const HEADER_RULES = [
   // "Worship" → "Welcome"
   { match: /^worship$/i, newTitle: 'Welcome' },
-  // "Scripture reading / Prayer / Sunday School" → "CONGREGATIONAL PRAYER"
-  { match: /scripture reading.*sunday school/i, newTitle: 'CONGREGATIONAL PRAYER' },
+  // "Announcements" (any variant) → "Announcements + Welcome Guests"
+  { match: /^announcements/i, newTitle: 'Announcements + Welcome Guests' },
+  // "Scripture reading / Prayer / Sunday School" → "Congregational Prayer"
+  { match: /scripture reading.*sunday school/i, newTitle: 'Congregational Prayer' },
   // "Message" → "Sermon"
   { match: /^message$/i, newTitle: 'Sermon' },
   // "Final Part" → "Benediction"
@@ -262,7 +270,9 @@ async function main() {
     }
 
     // Check if this item should be deleted
-    const shouldDelete = DELETE_RULES.some((re) => re.test(title));
+    const shouldDelete =
+      DELETE_RULES.some((re) => re.test(title)) ||
+      (type === 'item' && DELETE_ITEM_ONLY_RULES.some((re) => re.test(title)));
     if (shouldDelete) {
       console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — DELETE`);
       if (!DRY_RUN) {
