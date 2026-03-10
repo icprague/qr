@@ -496,7 +496,7 @@ body,
     });
   }
 
-  // --- Save QR code (cross-origin needs fetch+blob) ---
+  // --- Save QR code (share→Photos on mobile, download on desktop) ---
   var saveBtn = document.getElementById('icp-save-qr');
   if (saveBtn) {
     saveBtn.addEventListener('click', function (e) {
@@ -505,13 +505,25 @@ body,
       fetch(saveBtn.href)
         .then(function (r) { return r.blob(); })
         .then(function (blob) {
-          var a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'QR_Platba.png';
-          a.click();
-          URL.revokeObjectURL(a.href);
-          saveBtn.textContent = '✓ Saved';
-          setTimeout(function () { saveBtn.textContent = 'Save QR Code to Photos'; }, 2000);
+          var file = new File([blob], 'QR_Platba.png', { type: 'image/png' });
+          // Use Web Share API on mobile — iOS shows "Save Image" option
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file] })
+              .then(function () {
+                saveBtn.textContent = '✓ Saved';
+                setTimeout(function () { saveBtn.textContent = 'Save QR Code to Photos'; }, 2000);
+              })
+              .catch(function () { /* user cancelled share sheet */ });
+          } else {
+            // Desktop fallback: direct download
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'QR_Platba.png';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            saveBtn.textContent = '✓ Saved';
+            setTimeout(function () { saveBtn.textContent = 'Save QR Code to Photos'; }, 2000);
+          }
         });
     });
   }
