@@ -1,0 +1,29 @@
+name: "Fetch Last Plan (read-only)"
+
+# Logs every heading, item, song, and description from the most recently
+# completed Planning Center service plan.
+# Run manually: Actions tab → "Fetch Last Plan" → Run workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch-last-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch last plan from Planning Center
+        env:
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
+        run: node scripts/fetch-last-plan.js
