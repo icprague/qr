@@ -1,7 +1,7 @@
 /**
  * planning-center.js
  *
- * Shared module for looking up moderator information from Planning Center.
+ * Shared module for looking up moderator/worship leader information from Planning Center.
  * Used by both the editors email (Friday) and the moderator email (Saturday).
  *
  * Requires environment variables:
@@ -210,18 +210,19 @@ async function getModeratorInfo() {
 // ---------------------------------------------------------------------------
 
 /**
- * Look up the moderator's name for the upcoming Sunday and write it into the
- * plan item. Supports both formats:
+ * Look up the moderator and worship leader for the upcoming Sunday and write
+ * their names into the matching plan items.
  *
- *   Old: "Announcements + Welcome Guests (Moderator)"
- *      → "Announcements + Welcome Guests (Moderator - Jane Smith)"
+ *   "Moderator"      → "Moderator - Jane Smith"
+ *   "Worship Leader" → "Worship Leader - John Doe"
  *
- *   New: "Moderator"
- *      → "Moderator - Jane Smith"
+ * Also handles the old announcements format:
+ *   "Announcements + Welcome Guests (Moderator)" → "... (Moderator - Jane Smith)"
  *
  * Subsequent runs safely overwrite whatever name was written previously.
+ * Worship leader is looked up via the "#Music leader" position in Planning Center.
  *
- * @returns {{ moderatorName: string|null, updatedCount: number }}
+ * @returns {{ moderatorName: string|null, worshipLeaderName: string|null, updatedCount: number }}
  */
 async function updateModeratorInPlanItems() {
   const { PLANNING_CENTER_APP_ID, PLANNING_CENTER_SECRET } = process.env;
@@ -262,7 +263,7 @@ async function updateModeratorInPlanItems() {
   }
   console.log(`Plan: ${targetPlan.attributes.dates} (ID: ${targetPlan.id})`);
 
-  // Find the moderator from assigned team members (skip status 'D' = declined)
+  // Find the moderator and worship leader from assigned team members (skip status 'D' = declined)
   const teamMembersRaw = await fetch(
     `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members?per_page=100`,
     { headers }
@@ -270,22 +271,23 @@ async function updateModeratorInPlanItems() {
   const teamMembers = JSON.parse(teamMembersRaw);
 
   let moderatorName = null;
+  let worshipLeaderName = null;
   for (const member of teamMembers.data || []) {
+    if (member.attributes.status === 'D') continue; // skip declined
     const position = (member.attributes.team_position_name || '').toLowerCase();
-    if (position.includes('moderator') && member.attributes.status !== 'D') {
+    if (!moderatorName && position.includes('moderator')) {
       moderatorName = member.attributes.name;
-      break;
     }
+    if (!worshipLeaderName && position.includes('music leader')) {
+      worshipLeaderName = member.attributes.name;
+    }
+    if (moderatorName && worshipLeaderName) break;
   }
 
-  const replacementText = moderatorName
-    ? `(Moderator - ${moderatorName})`
-    : '(Moderator - no moderator scheduled)';
+  console.log(`Moderator:      ${moderatorName || 'not assigned'}`);
+  console.log(`Worship leader: ${worshipLeaderName || 'not assigned'}`);
 
-  console.log(`Moderator: ${moderatorName || 'not assigned'}`);
-  console.log(`Will write: "${replacementText}"`);
-
-  // Fetch plan items and patch any whose title contains "(Moderator...)"
+  // Fetch plan items
   const itemsRaw = await fetch(
     `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
     { headers }
@@ -295,12 +297,19 @@ async function updateModeratorInPlanItems() {
   // Match either the old format "Announcements + Welcome Guests (Moderator...)"
   // or the new restructured format where the item is just titled "Moderator" / "Moderator - Name".
   const oldPattern = /\(Moderator[^)]*\)/i;
-  const newPattern = /^Moderator(?: - .*)?$/i;
+  const newModeratorPattern = /^Moderator(?: - .*)?$/i;
+  const newWorshipPattern = /^Worship Leader(?: - .*)?$/i;
   let updatedCount = 0;
 
-  const newReplacementText = moderatorName
+  const moderatorReplacement = moderatorName
     ? `Moderator - ${moderatorName}`
     : 'Moderator - no moderator scheduled';
+  const moderatorOldReplacement = moderatorName
+    ? `(Moderator - ${moderatorName})`
+    : '(Moderator - no moderator scheduled)';
+  const worshipLeaderReplacement = worshipLeaderName
+    ? `Worship Leader - ${worshipLeaderName}`
+    : 'Worship Leader - no worship leader scheduled';
 
   for (const item of items.data || []) {
     const title = item.attributes.title || '';
@@ -308,10 +317,13 @@ async function updateModeratorInPlanItems() {
 
     if (/announcements/i.test(title) && oldPattern.test(title)) {
       // Old format: "Announcements + Welcome Guests (Moderator)" → replace parenthetical
-      newTitle = title.replace(oldPattern, replacementText);
-    } else if (newPattern.test(title)) {
+      newTitle = title.replace(oldPattern, moderatorOldReplacement);
+    } else if (newModeratorPattern.test(title)) {
       // New format: "Moderator" → "Moderator - Name"
-      newTitle = newReplacementText;
+      newTitle = moderatorReplacement;
+    } else if (newWorshipPattern.test(title)) {
+      // New format: "Worship Leader" → "Worship Leader - Name"
+      newTitle = worshipLeaderReplacement;
     } else {
       continue;
     }
@@ -340,7 +352,7 @@ async function updateModeratorInPlanItems() {
     console.log(`\nUpdated ${updatedCount} plan item(s).`);
   }
 
-  return { moderatorName, updatedCount };
+  return { moderatorName, worshipLeaderName, updatedCount };
 }
 
 module.exports = { getModeratorInfo, updateModeratorInPlanItems };

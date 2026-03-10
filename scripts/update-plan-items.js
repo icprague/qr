@@ -19,13 +19,9 @@
 const { updateModeratorInPlanItems } = require('./planning-center');
 
 async function main() {
-  const { moderatorName, updatedCount } = await updateModeratorInPlanItems();
+  const { moderatorName, worshipLeaderName, updatedCount } = await updateModeratorInPlanItems();
 
-  if (moderatorName) {
-    console.log(`\nDone. Moderator is ${moderatorName}. ${updatedCount} item(s) updated.`);
-  } else {
-    console.log(`\nDone. No moderator scheduled. ${updatedCount} item(s) updated.`);
-  }
+  console.log(`\nDone. Moderator: ${moderatorName || 'not assigned'}. Worship leader: ${worshipLeaderName || 'not assigned'}. ${updatedCount} item(s) updated.`);
 }
 
 main().catch((err) => {
