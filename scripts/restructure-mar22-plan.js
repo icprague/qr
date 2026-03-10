@@ -177,6 +177,7 @@ const DELETE_RULES = [
 // (Prevents deleting a correctly-named header on re-runs.)
 const DELETE_ITEM_ONLY_RULES = [
   /^benediction$/i, // extra Benediction item — the Benediction *header* comes from renaming "Final Part"
+  /^communion$/i,   // Communion item — the Communion *header* is kept; only the redundant item is removed
 ];
 
 // Each rule: { match (regex on title), newTitle, newDescription (optional) }
