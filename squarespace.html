@@ -187,48 +187,44 @@ gtag('config', 'G-YL2P0BP685');
   max-width: 480px;
   background: #f4f6fb;
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 16px 20px;
   margin-bottom: 16px;
+  text-align: center;
 }
 
-.icp-wrap .icp-bank-info table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: 'Raleway', sans-serif;
-  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
-}
-
-.icp-wrap .icp-bank-info tr {
+.icp-wrap .icp-bank-info .icp-field {
+  padding: 12px 0;
   border-bottom: 1px solid #dde2ef;
 }
 
-.icp-wrap .icp-bank-info tr:last-child {
+.icp-wrap .icp-bank-info .icp-field:last-child {
   border-bottom: none;
 }
 
-.icp-wrap .icp-bank-info td {
-  display: block;
-  padding: 0 4px;
-  line-height: 1.4;
+.icp-wrap .icp-bank-info .icp-field-label {
+  font-family: 'Raleway', sans-serif;
+  color: #555;
+  font-weight: 400;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
 }
 
-.icp-wrap .icp-bank-info tr td:first-child {
-  padding-top: 10px;
-  padding-bottom: 2px;
-}
-
-.icp-wrap .icp-bank-info tr td:last-child {
-  padding-bottom: 10px;
-}
-
-.icp-wrap .icp-bank-info td:first-child {
-  color: #333;
+.icp-wrap .icp-bank-info .icp-field-value {
+  font-family: 'Raleway', sans-serif;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: 600;
-}
-
-.icp-wrap .icp-bank-info td:last-child {
   color: #181c3a;
-  font-weight: 600;
+}
+
+.icp-wrap .icp-bank-info .icp-field-hint {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #555;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 .icp-wrap .icp-save-qr-btn {
@@ -243,16 +239,17 @@ gtag('config', 'G-YL2P0BP685');
 }
 
 .icp-wrap .icp-copy-btn {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 8px 20px;
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 0;
   font-family: 'Raleway', sans-serif;
   font-size: 1.125rem;
   font-weight: 600;
   background: #222a58;
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
@@ -423,19 +420,16 @@ body,
     <p class="icp-qr-label">QR Platba</p>
     <a id="icp-save-qr" class="icp-btn icp-save-qr-btn" href="https://icprague.github.io/qr/qr_platba.png" download="QR_Platba.png">Save QR Code to Photos</a>
     <div class="icp-bank-info">
-      <table>
-        <tr>
-          <td>Account number</td>
-          <td>
-            <span id="icp-acct-number">178324272/0300</span>
-            <button id="icp-copy-btn" class="icp-copy-btn" aria-label="Copy account number">Copy</button>
-          </td>
-        </tr>
-        <tr>
-          <td>Variabiln&iacute; symbol</td>
-          <td class="icp-highlight">1 &nbsp;&larr; use this to ensure the contribution is tax deductible</td>
-        </tr>
-      </table>
+      <div class="icp-field">
+        <div class="icp-field-label">Account number</div>
+        <div class="icp-field-value" id="icp-acct-number">178324272/0300</div>
+        <button id="icp-copy-btn" class="icp-copy-btn" aria-label="Copy account number">Copy Account Number</button>
+      </div>
+      <div class="icp-field">
+        <div class="icp-field-label">Variabiln&iacute; symbol</div>
+        <div class="icp-field-value icp-highlight">1</div>
+        <div class="icp-field-hint">Use this to ensure your contribution is tax deductible</div>
+      </div>
     </div>
     <a class="icp-back" href="javascript:void(0)" id="icp-btn-back-giving">&larr; Back to Giving Options</a>
   </div>
