@@ -55,6 +55,34 @@ function httpGet(url, options = {}, redirects = 0) {
   });
 }
 
+function httpDelete(url, authHeader) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: Number(u.port) || 443,
+        path: u.pathname + u.search,
+        method: 'DELETE',
+        headers: { Authorization: authHeader },
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          // 204 No Content is the expected success response for DELETE
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            return reject(new Error(`HTTP ${res.statusCode} DELETE ${url}: ${Buffer.concat(chunks).toString('utf-8')}`));
+          }
+          resolve();
+        });
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 function httpPatch(url, body, authHeader) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
@@ -92,6 +120,18 @@ function httpPatch(url, body, authHeader) {
 // ---------------------------------------------------------------------------
 // Transformation rules
 // ---------------------------------------------------------------------------
+
+// Items whose titles match these patterns are DELETED (type=item or type=header).
+// Songs are never deleted regardless.
+const DELETE_RULES = [
+  /^pre service$/i,
+  /^pre-?service slides$/i,
+  /^countdown$/i,
+  /^congregational prayer.*ushers/i,  // item form — the header is kept & renamed
+  /^post service$/i,
+  /^exit song$/i,
+  /^post-?service slides$/i,
+];
 
 // Each rule: { match (regex on title), newTitle, newDescription (optional) }
 // Applied only to items of the matching type. Songs are always skipped.
@@ -196,6 +236,7 @@ async function main() {
 
   // 4. Process each item
   let updatedCount = 0;
+  let deletedCount = 0;
   let skippedSongs = 0;
   let communionWarned = false;
 
@@ -205,21 +246,36 @@ async function main() {
     const title = attrs.title || '';
     const seq = attrs.sequence != null ? `#${attrs.sequence}` : '';
 
-    // Skip songs entirely
+    // Songs are NEVER touched
     if (type === 'song') {
       skippedSongs++;
       console.log(`  ${seq} [SONG] "${title}" — skipped (songs are never modified)`);
       continue;
     }
 
-    // Warn about Communion section but leave it alone
+    // Warn about Communion section but leave it alone (no song to delete with it safely)
     if (/communion/i.test(title)) {
-      console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — ⚠️  COMMUNION: not modified (March 22 should not have communion — please delete this manually if it exists)`);
+      console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — ⚠️  COMMUNION: not modified (delete manually in Planning Center)`);
       communionWarned = true;
       continue;
     }
 
-    // Apply transformation rules
+    // Check if this item should be deleted
+    const shouldDelete = DELETE_RULES.some((re) => re.test(title));
+    if (shouldDelete) {
+      console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — DELETE`);
+      if (!DRY_RUN) {
+        await httpDelete(
+          `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${item.id}`,
+          authHeader
+        );
+        console.log(`         ✓ Deleted`);
+      }
+      deletedCount++;
+      continue;
+    }
+
+    // Apply rename rules
     const rules = type === 'header' ? HEADER_RULES : ITEM_RULES;
     const rule = applyRule(rules, title);
 
@@ -243,7 +299,6 @@ async function main() {
       continue;
     }
 
-    // Log what would happen / is happening
     const titleChange = patchAttrs.title !== undefined
       ? `title: "${title}" → "${patchAttrs.title}"`
       : `title unchanged: "${title}"`;
@@ -269,6 +324,7 @@ async function main() {
   // 5. Summary
   console.log('\n' + '─'.repeat(60));
   console.log(`Songs skipped (untouched): ${skippedSongs}`);
+  console.log(`Items ${DRY_RUN ? 'that would be deleted' : 'deleted'}: ${deletedCount}`);
   console.log(`Items ${DRY_RUN ? 'that would be updated' : 'updated'}: ${updatedCount}`);
   if (communionWarned) {
     console.log('\n⚠️  A Communion header/item was detected — please remove it manually in Planning Center.');
