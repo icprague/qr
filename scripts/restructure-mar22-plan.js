@@ -1,7 +1,7 @@
 /**
  * restructure-mar22-plan.js
  *
- * One-time script to restructure the March 22, 2026 Planning Center plan
+ * One-time script to restructure the March 15, 2026 Planning Center plan
  * to match the March 8 "new structure" — without the Communion section.
  *
  * Rules:
@@ -24,7 +24,7 @@
 const https = require('https');
 
 const DRY_RUN = !process.argv.includes('--apply');
-const TARGET_DATE = '2026-03-22';
+const TARGET_DATE = '2026-03-15';
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
@@ -228,7 +228,7 @@ async function main() {
     'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
   const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
 
-  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}Restructuring March 22, 2026 plan to match March 8 structure.\n`);
+  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}Restructuring March 15, 2026 plan to match new service structure.\n`);
 
   // 1. Get service type
   const stRaw = await httpGet('https://api.planningcenteronline.com/services/v2/service_types', { headers });
@@ -237,7 +237,7 @@ async function main() {
   const serviceTypeId = serviceTypes.data[0].id;
   console.log(`Service type: ${serviceTypes.data[0].attributes.name} (${serviceTypeId})\n`);
 
-  // 2. Find the March 22 plan — check future plans first, then recent past
+  // 2. Find the March 15 plan — check future plans first, then recent past
   let targetPlan = null;
 
   for (const filter of ['future', 'past']) {
@@ -248,7 +248,7 @@ async function main() {
     const plans = JSON.parse(plansRaw);
     for (const plan of plans.data || []) {
       const planDate = plan.attributes.sort_date || plan.attributes.dates || '';
-      if (planDate.includes('Mar 22') || planDate.startsWith(TARGET_DATE)) {
+      if (planDate.includes('Mar 15') || planDate.startsWith(TARGET_DATE)) {
         targetPlan = plan;
         break;
       }
