@@ -374,8 +374,8 @@ body,
     <h1>SUPPORTING ICP</h1>
     <div class="icp-buttons">
       <a class="icp-btn" href="javascript:void(0)" id="icp-btn-czech-nav">Czech Bank Transfer (CZK)</a>
-      <a class="icp-btn" id="icp-btn-usd" href="https://giving.myamplify.io//app/giving/idp" target="_blank">
-        <span class="icp-btn-label">International &middot; Card (USD)</span>
+      <a class="icp-btn" id="icp-btn-usd" href="https://donate.stripe.com/3cI3cwcU2d4j3Bs1Ps0Ny00" target="_blank">
+        <span class="icp-btn-label">Card Payment</span>
         <span class="payment-icons" aria-hidden="true">
           <!-- Generic card -->
           <svg width="60" height="34" viewBox="0 0 60 34" xmlns="http://www.w3.org/2000/svg" aria-label="Credit card">
@@ -551,6 +551,7 @@ body,
   fetchJSON('config.json', function (c) {
     if (c.orderOfWorshipUrl) document.getElementById('icp-btn-worship').href = c.orderOfWorshipUrl;
     if (c.connectCardUrl)    document.getElementById('icp-btn-connect').href = c.connectCardUrl;
+    if (c.giveOnlineUrl)     document.getElementById('icp-btn-usd').href = c.giveOnlineUrl;
   });
 
 })();
