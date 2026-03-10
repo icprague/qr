@@ -1,7 +1,7 @@
-name: "Restructure March 22 Plan (one-time)"
+name: "Restructure March 15 Plan (one-time)"
 
-# One-time workflow to restructure the March 22, 2026 plan to match
-# the March 8 "new structure" (without Communion).
+# One-time workflow to restructure the March 15, 2026 plan to match
+# the new service structure (without Communion).
 #
 # Run with mode = "dry-run" first to preview changes, then "apply" to commit them.
 
@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restructure March 22 plan
+      - name: Restructure March 15 plan
         env:
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
