@@ -152,10 +152,11 @@ const ITEM_RULES = [
   { match: /welcome.*prayer.*moderator/i, newTitle: 'Worship Leader' },
   // "Announcements + Welcome Guests (Moderator)" → "Moderator"
   { match: /announcements.*moderator/i, newTitle: 'Moderator' },
-  // "Sunday School (Ushers)" → blank title with children-dismissed note
+  // "Sunday School (Ushers)" → invisible character title with children-dismissed note
+  // (Planning Center rejects truly blank titles, so we use a word joiner U+2060)
   {
     match: /sunday school.*ushers/i,
-    newTitle: '',
+    newTitle: '\u2060',
     newDescription: '(Children are dismissed for Sunday School)',
   },
   // "Scripture reading (Ushers)" → "Scripture"
