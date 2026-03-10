@@ -83,6 +83,40 @@ function httpDelete(url, authHeader) {
   });
 }
 
+function httpPost(url, body, authHeader) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const payload = JSON.stringify(body);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: Number(u.port) || 443,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf-8');
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            return reject(new Error(`HTTP ${res.statusCode} POST ${url}: ${text}`));
+          }
+          resolve(text);
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
 function httpPatch(url, body, authHeader) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
@@ -125,12 +159,18 @@ function httpPatch(url, body, authHeader) {
 // Songs are never deleted regardless.
 const DELETE_RULES = [
   /^pre service$/i,
-  /^pre-?service slides$/i,
+  /^pre-?service slides?$/i,        // matches "slides" and "slide"
   /^countdown$/i,
-  /^congregational prayer.*ushers/i,  // item form — the header is kept & renamed
+  /^congregational prayer.*ushers/i, // item form — the header is kept & renamed
   /^post service$/i,
   /^exit song$/i,
-  /^post-?service slides$/i,
+  /^post-?service slides?$/i,        // matches "slides" and "slide"
+];
+
+// These patterns delete ONLY items of type 'item', never headers.
+// (Prevents deleting a correctly-named header on re-runs.)
+const DELETE_ITEM_ONLY_RULES = [
+  /^benediction$/i, // extra Benediction item — the Benediction *header* comes from renaming "Final Part"
 ];
 
 // Each rule: { match (regex on title), newTitle, newDescription (optional) }
@@ -139,8 +179,8 @@ const DELETE_RULES = [
 const HEADER_RULES = [
   // "Worship" → "Welcome"
   { match: /^worship$/i, newTitle: 'Welcome' },
-  // "Scripture reading / Prayer / Sunday School" → "CONGREGATIONAL PRAYER"
-  { match: /scripture reading.*sunday school/i, newTitle: 'CONGREGATIONAL PRAYER' },
+  // "Scripture reading / Prayer / Sunday School" → "Congregational Prayer"
+  { match: /scripture reading.*sunday school/i, newTitle: 'Congregational Prayer' },
   // "Message" → "Sermon"
   { match: /^message$/i, newTitle: 'Sermon' },
   // "Final Part" → "Benediction"
@@ -238,8 +278,14 @@ async function main() {
   // 4. Process each item
   let updatedCount = 0;
   let deletedCount = 0;
+  let createdCount = 0;
   let skippedSongs = 0;
   let communionWarned = false;
+
+  // Note whether the plan already has an Announcements header (check before any changes).
+  const hasAnnouncementsHeader = allItems.some(
+    (item) => item.attributes.item_type === 'header' && /^announcements/i.test(item.attributes.title)
+  );
 
   for (const item of allItems) {
     const attrs = item.attributes;
@@ -262,7 +308,9 @@ async function main() {
     }
 
     // Check if this item should be deleted
-    const shouldDelete = DELETE_RULES.some((re) => re.test(title));
+    const shouldDelete =
+      DELETE_RULES.some((re) => re.test(title)) ||
+      (type === 'item' && DELETE_ITEM_ONLY_RULES.some((re) => re.test(title)));
     if (shouldDelete) {
       console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — DELETE`);
       if (!DRY_RUN) {
@@ -322,11 +370,43 @@ async function main() {
     updatedCount++;
   }
 
-  // 5. Summary
+  // 5. Create "Announcements + Welcome Guests" header if the plan has none
+  if (!hasAnnouncementsHeader) {
+    if (DRY_RUN) {
+      console.log('\n  [CREATE HEADER] "Announcements + Welcome Guests" before Moderator item — dry run, would POST');
+      createdCount++;
+    } else {
+      // Re-fetch so sequence numbers reflect the deletions we just made
+      const refreshedRaw = await httpGet(
+        `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
+        { headers }
+      );
+      const refreshedItems = JSON.parse(refreshedRaw).data || [];
+      const moderatorItem = refreshedItems.find(
+        (item) => item.attributes.item_type === 'item' && /^moderator$/i.test(item.attributes.title)
+      );
+      if (!moderatorItem) {
+        console.log('\n  ⚠️  Could not find "Moderator" item after processing — add "Announcements + Welcome Guests" header manually');
+      } else {
+        const seq = moderatorItem.attributes.sequence;
+        console.log(`\n  [CREATE HEADER] "Announcements + Welcome Guests" at sequence ${seq} (before Moderator)`);
+        await httpPost(
+          `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items`,
+          { data: { type: 'Item', attributes: { title: 'Announcements + Welcome Guests', item_type: 'header', sequence: seq } } },
+          authHeader
+        );
+        console.log('         ✓ Created');
+        createdCount++;
+      }
+    }
+  }
+
+  // 6. Summary
   console.log('\n' + '─'.repeat(60));
   console.log(`Songs skipped (untouched): ${skippedSongs}`);
   console.log(`Items ${DRY_RUN ? 'that would be deleted' : 'deleted'}: ${deletedCount}`);
   console.log(`Items ${DRY_RUN ? 'that would be updated' : 'updated'}: ${updatedCount}`);
+  console.log(`Headers ${DRY_RUN ? 'that would be created' : 'created'}: ${createdCount}`);
   if (communionWarned) {
     console.log('\n⚠️  A Communion header/item was detected — please remove it manually in Planning Center.');
   }
