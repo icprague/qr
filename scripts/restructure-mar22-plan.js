@@ -287,6 +287,14 @@ async function main() {
     (item) => item.attributes.item_type === 'header' && /^announcements/i.test(item.attributes.title)
   );
 
+  // Find the Benediction header (titled "Final Part" or already "Benediction") so we can
+  // delete everything that comes after it, regardless of title.
+  const benedictionHeader = allItems.find(
+    (item) => item.attributes.item_type === 'header' &&
+              (/^final part$/i.test(item.attributes.title) || /^benediction$/i.test(item.attributes.title))
+  );
+  const benedictionSeq = benedictionHeader ? benedictionHeader.attributes.sequence : Infinity;
+
   for (const item of allItems) {
     const attrs = item.attributes;
     const type = attrs.item_type || '';
@@ -307,7 +315,21 @@ async function main() {
       continue;
     }
 
-    // Check if this item should be deleted
+    // Delete anything that appears after the Benediction header
+    if (attrs.sequence > benedictionSeq) {
+      console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — DELETE (after Benediction)`);
+      if (!DRY_RUN) {
+        await httpDelete(
+          `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${item.id}`,
+          authHeader
+        );
+        console.log('         ✓ Deleted');
+      }
+      deletedCount++;
+      continue;
+    }
+
+    // Check if this item should be deleted (by title)
     const shouldDelete =
       DELETE_RULES.some((re) => re.test(title)) ||
       (type === 'item' && DELETE_ITEM_ONLY_RULES.some((re) => re.test(title)));
