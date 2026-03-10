@@ -231,6 +231,13 @@ gtag('config', 'G-YL2P0BP685');
   font-weight: 600;
 }
 
+.icp-wrap .icp-save-qr-btn {
+  width: auto;
+  padding: 12px 28px;
+  margin-bottom: 20px;
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
+}
+
 .icp-wrap .icp-highlight {
   color: #6b1624 !important;
 }
@@ -411,9 +418,10 @@ body,
   <!-- CZECH BANK VIEW -->
   <div id="icp-view-czech">
     <h1>Czech Bank Transfer (CZK)</h1>
-    <p class="icp-note">Screenshot this QR code and use it for QR payment in your banking app &mdash; or scan it directly from the app.</p>
+    <p class="icp-note">Save this QR code to your photos, then open your banking app and scan it from your photo library.</p>
     <img src="https://icprague.github.io/qr/qr_platba.png" alt="QR Platba – Czech bank transfer QR code" class="icp-qr-img">
     <p class="icp-qr-label">QR Platba</p>
+    <a id="icp-save-qr" class="icp-btn icp-save-qr-btn" href="https://icprague.github.io/qr/qr_platba.png" download="QR_Platba.png">Save QR Code to Photos</a>
     <div class="icp-bank-info">
       <table>
         <tr>
@@ -501,6 +509,26 @@ body,
           copyBtn.classList.remove('copied');
         }, 2000);
       });
+    });
+  }
+
+  // --- Save QR code (cross-origin needs fetch+blob) ---
+  var saveBtn = document.getElementById('icp-save-qr');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (typeof gtag === 'function') gtag('event', 'button_click', { button_name: 'save_qr' });
+      fetch(saveBtn.href)
+        .then(function (r) { return r.blob(); })
+        .then(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'QR_Platba.png';
+          a.click();
+          URL.revokeObjectURL(a.href);
+          saveBtn.textContent = '✓ Saved';
+          setTimeout(function () { saveBtn.textContent = 'Save QR Code to Photos'; }, 2000);
+        });
     });
   }
 
