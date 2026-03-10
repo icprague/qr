@@ -1,22 +1,24 @@
 /**
- * restructure-mar22-plan.js
+ * restructure-plan.js
  *
- * One-time script to restructure the March 15, 2026 Planning Center plan
- * to match the March 8 "new structure" — without the Communion section.
+ * Restructures a Planning Center Sunday plan to match the standard template.
+ * Detects communion Sundays from the plan title and adds a Communion header.
  *
  * Rules:
  *   - Songs are NEVER touched.
- *   - Headers are renamed to match March 8 headings.
+ *   - Headers are renamed to match the standard template.
  *   - Items have person names stripped; special items get fixed titles.
- *   - Communion header (if present) is skipped with a warning.
+ *   - If the plan title contains "communion", a Communion header is inserted
+ *     between "Sermon title" and the last song before Benediction.
  *
  * Usage:
- *   node scripts/restructure-mar22-plan.js            # dry run (safe, no changes)
- *   node scripts/restructure-mar22-plan.js --apply    # actually update Planning Center
+ *   TARGET_DATE=2026-03-15 node scripts/restructure-mar22-plan.js            # dry run
+ *   TARGET_DATE=2026-03-15 node scripts/restructure-mar22-plan.js --apply    # apply
  *
  * Required environment variables:
  *   PLANNING_CENTER_APP_ID
  *   PLANNING_CENTER_SECRET
+ *   TARGET_DATE  — the Sunday date to restructure (YYYY-MM-DD)
  */
 
 'use strict';
@@ -24,7 +26,11 @@
 const https = require('https');
 
 const DRY_RUN = !process.argv.includes('--apply');
-const TARGET_DATE = '2026-03-15';
+const TARGET_DATE = process.env.TARGET_DATE;
+if (!TARGET_DATE || !/^\d{4}-\d{2}-\d{2}$/.test(TARGET_DATE)) {
+  console.error('TARGET_DATE environment variable is required (format: YYYY-MM-DD).');
+  process.exit(1);
+}
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
@@ -228,7 +234,7 @@ async function main() {
     'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
   const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
 
-  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}Restructuring March 15, 2026 plan to match new service structure.\n`);
+  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}Restructuring plan for ${TARGET_DATE}.\n`);
 
   // 1. Get service type
   const stRaw = await httpGet('https://api.planningcenteronline.com/services/v2/service_types', { headers });
@@ -237,7 +243,12 @@ async function main() {
   const serviceTypeId = serviceTypes.data[0].id;
   console.log(`Service type: ${serviceTypes.data[0].attributes.name} (${serviceTypeId})\n`);
 
-  // 2. Find the March 15 plan — check future plans first, then recent past
+  // 2. Find the plan for TARGET_DATE — check future plans first, then recent past
+  //    Match against sort_date (YYYY-MM-DDTHH:MM:SS) or the human-readable dates field.
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [, mon, day] = TARGET_DATE.split('-');
+  const shortDate = `${monthNames[parseInt(mon, 10) - 1]} ${parseInt(day, 10)}`;
+
   let targetPlan = null;
 
   for (const filter of ['future', 'past']) {
@@ -248,7 +259,7 @@ async function main() {
     const plans = JSON.parse(plansRaw);
     for (const plan of plans.data || []) {
       const planDate = plan.attributes.sort_date || plan.attributes.dates || '';
-      if (planDate.includes('Mar 15') || planDate.startsWith(TARGET_DATE)) {
+      if (planDate.startsWith(TARGET_DATE) || planDate.includes(shortDate)) {
         targetPlan = plan;
         break;
       }
@@ -263,7 +274,13 @@ async function main() {
     );
   }
 
-  console.log(`Found plan: "${targetPlan.attributes.title || '(no title)'}" — ${targetPlan.attributes.dates} (ID: ${targetPlan.id})\n`);
+  const planTitle = targetPlan.attributes.title || '(no title)';
+  const isCommunionSunday = /communion/i.test(planTitle);
+  console.log(`Found plan: "${planTitle}" — ${targetPlan.attributes.dates} (ID: ${targetPlan.id})`);
+  if (isCommunionSunday) {
+    console.log('  → Communion Sunday detected — will add Communion header');
+  }
+  console.log();
 
   // 3. Fetch plan items
   const itemsRaw = await httpGet(
@@ -280,7 +297,6 @@ async function main() {
   let deletedCount = 0;
   let createdCount = 0;
   let skippedSongs = 0;
-  let communionWarned = false;
 
   // Check which headers already exist (before any changes) so we know what to create.
   const hasAnnouncementsHeader = allItems.some(
@@ -288,6 +304,9 @@ async function main() {
   );
   const hasScriptureReadingHeader = allItems.some(
     (item) => item.attributes.item_type === 'header' && /^scripture reading$/i.test(item.attributes.title)
+  );
+  const hasCommunionHeader = allItems.some(
+    (item) => item.attributes.item_type === 'header' && /^communion$/i.test(item.attributes.title)
   );
 
   // Find the Benediction header (titled "Final Part" or already "Benediction") so we can
@@ -308,13 +327,6 @@ async function main() {
     if (type === 'song') {
       skippedSongs++;
       console.log(`  ${seq} [SONG] "${title}" — skipped (songs are never modified)`);
-      continue;
-    }
-
-    // Warn about Communion section but leave it alone (no song to delete with it safely)
-    if (/communion/i.test(title)) {
-      console.log(`  ${seq} [${type.toUpperCase()}] "${title}" — ⚠️  COMMUNION: not modified (delete manually in Planning Center)`);
-      communionWarned = true;
       continue;
     }
 
@@ -406,6 +418,9 @@ async function main() {
   if (!hasScriptureReadingHeader) {
     headersToCreate.push({ title: 'Scripture Reading', beforeItem: /^scripture$/i, label: 'Scripture' });
   }
+  if (isCommunionSunday && !hasCommunionHeader) {
+    headersToCreate.push({ title: 'Communion', beforeItem: /^benediction$/i, label: 'Benediction', matchType: 'header' });
+  }
 
   if (headersToCreate.length > 0) {
     if (DRY_RUN) {
@@ -422,8 +437,9 @@ async function main() {
       let refreshedItems = JSON.parse(refreshedRaw).data || [];
 
       for (const h of headersToCreate) {
+        const anchorType = h.matchType || 'item';
         const anchor = refreshedItems.find(
-          (item) => item.attributes.item_type === 'item' && h.beforeItem.test(item.attributes.title)
+          (item) => item.attributes.item_type === anchorType && h.beforeItem.test(item.attributes.title)
         );
         if (!anchor) {
           console.log(`\n  ⚠️  Could not find "${h.label}" item after processing — add "${h.title}" header manually`);
@@ -455,12 +471,9 @@ async function main() {
   console.log(`Items ${DRY_RUN ? 'that would be deleted' : 'deleted'}: ${deletedCount}`);
   console.log(`Items ${DRY_RUN ? 'that would be updated' : 'updated'}: ${updatedCount}`);
   console.log(`Headers ${DRY_RUN ? 'that would be created' : 'created'}: ${createdCount}`);
-  if (communionWarned) {
-    console.log('\n⚠️  A Communion header/item was detected — please remove it manually in Planning Center.');
-  }
   if (DRY_RUN) {
     console.log('\nThis was a DRY RUN. No changes were made.');
-    console.log('To apply: node scripts/restructure-mar22-plan.js --apply');
+    console.log(`To apply: TARGET_DATE=${TARGET_DATE} node scripts/restructure-mar22-plan.js --apply`);
   } else {
     console.log('\nDone. Plan has been restructured.');
   }
