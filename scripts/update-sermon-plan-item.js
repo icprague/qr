@@ -4,7 +4,11 @@
  * Self-contained script that:
  *   1. Fetches the latest Mailchimp newsletter
  *   2. Extracts the sermon title (H2) and scripture (H3) from "This Sunday"
- *   3. Writes "Sermon - Title (Scripture)" into the Planning Center plan item
+ *   3. Looks up the preacher from the Planning Center schedule
+ *   4. Writes the sermon title + preacher name into the "Sermon title" plan item
+ *      e.g. "The Good Samaritan - Pastor Mike Weiglein"
+ *   5. Writes the scripture reference into the "Scripture" plan item
+ *      e.g. "Luke 10:25-37"
  *
  * Runs on Friday (alongside the newsletter link update) since it depends on
  * the newsletter being available. Separate from the moderator update which
@@ -23,7 +27,7 @@
 const https = require('https');
 const http = require('http');
 const nodemailer = require('nodemailer');
-const { extractSermonInfo, formatSermonForPlanItem } = require('./parse-sermon-info');
+const { extractSermonInfo } = require('./parse-sermon-info');
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -233,21 +237,19 @@ async function fetchSermonInfoFromNewsletter() {
   console.log(`  HTML length: ${content.html.length} bytes\n`);
 
   const { sermonTitle, scripture } = extractSermonInfo(content.html);
-  const formatted = formatSermonForPlanItem(sermonTitle, scripture);
 
   console.log(`  Sermon Title (H2): ${sermonTitle || '(not found)'}`);
-  console.log(`  Scripture (H3):    ${scripture || '(not found)'}`);
-  console.log(`  Formatted:         ${formatted || '(nothing to write)'}\n`);
+  console.log(`  Scripture (H3):    ${scripture || '(not found)'}\n`);
 
-  return { sermonTitle, scripture, formatted };
+  return { sermonTitle, scripture };
 }
 
 // ---------------------------------------------------------------------------
 // Step 2: Write sermon info to Planning Center plan item
 // ---------------------------------------------------------------------------
 
-async function writeSermonToPlanningCenter(formatted) {
-  console.log('=== STEP 2: UPDATE PLANNING CENTER PLAN ITEM ===\n');
+async function writeSermonToPlanningCenter(sermonTitle, scripture) {
+  console.log('=== STEP 2: UPDATE PLANNING CENTER PLAN ITEMS ===\n');
 
   const sunday = getUpcomingSunday();
   const dateStr = sunday.toISOString().split('T')[0];
@@ -255,7 +257,7 @@ async function writeSermonToPlanningCenter(formatted) {
     'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
   const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
 
-  console.log(`Updating sermon plan item for upcoming Sunday: ${dateStr}`);
+  console.log(`Updating plan items for upcoming Sunday: ${dateStr}`);
 
   // Get service type
   const serviceTypesRaw = await httpGet(
@@ -282,6 +284,36 @@ async function writeSermonToPlanningCenter(formatted) {
   }
   console.log(`Plan: ${targetPlan.attributes.dates} (ID: ${targetPlan.id})`);
 
+  // Look up preacher from team members
+  const teamMembersRaw = await httpGet(
+    `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/team_members?per_page=100`,
+    { headers }
+  );
+  const teamMembers = JSON.parse(teamMembersRaw);
+
+  const preacherKeywords = ['sermon', 'message', 'preacher', 'speaker', 'pastor'];
+  let preacherName = null;
+  let preacherPosition = null;
+  for (const member of teamMembers.data || []) {
+    const position = (member.attributes.team_position_name || '').toLowerCase();
+    if (member.attributes.status === 'D') continue; // skip declined
+    if (preacherKeywords.some((kw) => position.includes(kw))) {
+      preacherName = member.attributes.name;
+      preacherPosition = member.attributes.team_position_name || '';
+      break;
+    }
+  }
+
+  // Format preacher name: prefix with "Pastor" if the position indicates pastor
+  let formattedPreacher = null;
+  if (preacherName) {
+    const isPastor = /pastor/i.test(preacherPosition);
+    formattedPreacher = isPastor ? `Pastor ${preacherName}` : preacherName;
+    console.log(`Preacher: ${formattedPreacher} (position: ${preacherPosition})`);
+  } else {
+    console.log('Preacher: not assigned');
+  }
+
   // Fetch plan items
   const itemsRaw = await httpGet(
     `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
@@ -289,38 +321,76 @@ async function writeSermonToPlanningCenter(formatted) {
   );
   const items = JSON.parse(itemsRaw);
 
-  // Match items whose title starts with "Sermon" (case-insensitive)
-  // Handles: "Sermon", "Sermon - Previous Title (Previous Scripture)"
-  const sermonPattern = /^Sermon(\s*-\s*.*)?$/i;
-  const newTitle = `Sermon - ${formatted}`;
   let updatedCount = 0;
+  const allItems = items.data || [];
 
-  for (const item of items.data || []) {
-    const title = item.attributes.title || '';
-    if (!sermonPattern.test(title.trim())) continue;
-
-    if (title.trim() === newTitle) {
-      console.log(`  [${item.id}] "${title}" — already current, skipping`);
-      continue;
-    }
-
-    console.log(`  [${item.id}] "${title}"`);
-    console.log(`       → "${newTitle}"`);
-
-    await httpPatch(
-      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${item.id}`,
-      { data: { type: 'Item', id: item.id, attributes: { title: newTitle } } },
-      authHeader
+  // Helper: find the first item (not header/song) after a given header
+  function findFirstItemAfterHeader(headerPattern) {
+    const header = allItems.find(
+      (it) => it.attributes.item_type === 'header' && headerPattern.test((it.attributes.title || '').trim())
     );
+    if (!header) return null;
+    const headerSeq = header.attributes.sequence;
+    return allItems
+      .filter((it) => it.attributes.item_type === 'item' && it.attributes.sequence > headerSeq)
+      .sort((a, b) => a.attributes.sequence - b.attributes.sequence)[0] || null;
+  }
 
-    console.log(`       ✓ Updated`);
-    updatedCount++;
+  // --- Update sermon title item (first item under the "Sermon" header) ---
+  if (sermonTitle) {
+    const sermonItem = findFirstItemAfterHeader(/^sermon$/i);
+    if (sermonItem) {
+      const newSermonTitle = formattedPreacher
+        ? `${sermonTitle} - ${formattedPreacher}`
+        : sermonTitle;
+      const currentTitle = (sermonItem.attributes.title || '').trim();
+
+      if (currentTitle === newSermonTitle) {
+        console.log(`  [${sermonItem.id}] "${currentTitle}" — already current, skipping`);
+      } else {
+        console.log(`  [${sermonItem.id}] "${currentTitle}"`);
+        console.log(`       → "${newSermonTitle}"`);
+        await httpPatch(
+          `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${sermonItem.id}`,
+          { data: { type: 'Item', id: sermonItem.id, attributes: { title: newSermonTitle } } },
+          authHeader
+        );
+        console.log(`       ✓ Updated`);
+        updatedCount++;
+      }
+    } else {
+      console.log('  ⚠️  Could not find sermon title item (no item under "Sermon" header)');
+    }
+  }
+
+  // --- Update scripture item (first item under the "Scripture Reading" header) ---
+  if (scripture) {
+    const scriptureItem = findFirstItemAfterHeader(/^scripture reading$/i);
+    if (scriptureItem) {
+      const currentTitle = (scriptureItem.attributes.title || '').trim();
+
+      if (currentTitle === scripture) {
+        console.log(`  [${scriptureItem.id}] "${currentTitle}" — already current, skipping`);
+      } else {
+        console.log(`  [${scriptureItem.id}] "${currentTitle}"`);
+        console.log(`       → "${scripture}"`);
+        await httpPatch(
+          `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${scriptureItem.id}`,
+          { data: { type: 'Item', id: scriptureItem.id, attributes: { title: scripture } } },
+          authHeader
+        );
+        console.log(`       ✓ Updated`);
+        updatedCount++;
+      }
+    } else {
+      console.log('  ⚠️  Could not find scripture item (no item under "Scripture Reading" header)');
+    }
   }
 
   if (updatedCount === 0) {
-    console.log('No sermon items needed updating.');
+    console.log('No items needed updating.');
   } else {
-    console.log(`\nUpdated ${updatedCount} sermon plan item(s).`);
+    console.log(`\nUpdated ${updatedCount} plan item(s).`);
   }
 
   return updatedCount;
@@ -331,14 +401,14 @@ async function writeSermonToPlanningCenter(formatted) {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  const { formatted } = await fetchSermonInfoFromNewsletter();
+  const { sermonTitle, scripture } = await fetchSermonInfoFromNewsletter();
 
-  if (!formatted) {
+  if (!sermonTitle && !scripture) {
     console.log('No sermon info found in newsletter. Nothing to update in Planning Center.');
     return;
   }
 
-  await writeSermonToPlanningCenter(formatted);
+  await writeSermonToPlanningCenter(sermonTitle, scripture);
   console.log('\nDone.');
 }
 
