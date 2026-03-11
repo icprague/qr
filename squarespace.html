@@ -5,6 +5,7 @@
   QR code UTM parameters:
     Pew card:       ?utm_source=qr&utm_content=pew   OR  ?utm_source=pew
     Take-home card: ?utm_source=qr&utm_content=card  OR  ?utm_source=card  ← shows location button
+    Giving card:    ?utm_source=giving                                      ← opens giving view directly
 -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -441,9 +442,10 @@ body,
     var titles = { main: 'Sunday Service', giving: 'Supporting ICP', czech: 'Czech Bank Transfer' };
     var paths  = { main: '/welcome', giving: '/welcome#giving', czech: '/welcome#czech' };
     if (typeof gtag === 'function') {
-      // For the initial main view, use the real URL so UTM params are preserved for source attribution.
-      // For sub-views (giving, czech), use the virtual path since UTMs were already captured.
-      var loc = (v === 'main') ? window.location.href : window.location.origin + paths[v];
+      // For the initial view, use the real URL so UTM params are preserved for source attribution.
+      // For subsequent sub-views, use the virtual path since UTMs were already captured.
+      var loc = (!icpShow._fired) ? window.location.href : window.location.origin + paths[v];
+      icpShow._fired = true;
       gtag('event', 'page_view', {
         page_title: titles[v],
         page_location: loc
@@ -451,7 +453,14 @@ body,
     }
   }
 
-  icpShow('main');
+  // --- Determine initial view ---
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('utm_source') === 'giving') {
+    document.getElementById('icp-btn-back-main').style.display = 'none';
+    icpShow('giving');
+  } else {
+    icpShow('main');
+  }
 
   // --- Navigation ---
   document.getElementById('icp-btn-give-nav').addEventListener('click', function () {
@@ -530,7 +539,6 @@ body,
   }
 
   // --- Show location button for take-home card; hide title ---
-  var params = new URLSearchParams(window.location.search);
   if (params.get('utm_content') === 'card' || params.get('utm_source') === 'card') {
     var locBtn = document.getElementById('icp-btn-location');
     if (locBtn) locBtn.style.display = 'flex';
