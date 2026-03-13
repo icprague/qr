@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Authenticate to Google Cloud
         id: auth
@@ -30,7 +30,7 @@ jobs:
           access_token_scopes: 'https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/spreadsheets.readonly'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
