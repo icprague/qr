@@ -1,13 +1,10 @@
-name: Sync Planning Center to Mailchimp
+name: Test PCO → Mailchimp Sync (Dry Run)
 
 on:
-  schedule:
-    # Every day at noon Prague time (CET = UTC+1, CEST = UTC+2)
-    - cron: '0 11 * * *'
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch: # Manual trigger only
 
 jobs:
-  sync:
+  dry-run:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -18,9 +15,9 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Sync PCO newsletter list to Mailchimp
+      - name: Dry-run sync (log only, no Mailchimp writes)
         env:
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
-          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+          DRY_RUN: 'true'
         run: node scripts/sync-pco-mailchimp.js
