@@ -284,6 +284,11 @@ async function updateModeratorInPlanItems() {
     if (moderatorName && worshipLeaderName) break;
   }
 
+  // Format moderator name: Mike Weiglein gets the "Pastor" prefix
+  if (moderatorName && /^mike\s+weiglein$/i.test(moderatorName)) {
+    moderatorName = `Pastor ${moderatorName}`;
+  }
+
   console.log(`Moderator:      ${moderatorName || 'not assigned'}`);
   console.log(`Worship leader: ${worshipLeaderName || 'not assigned'}`);
 
