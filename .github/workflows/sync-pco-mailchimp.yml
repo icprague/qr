@@ -2,8 +2,8 @@ name: Sync Planning Center to Mailchimp
 
 on:
   schedule:
-    # Every day at noon Prague time (CET = UTC+1, CEST = UTC+2)
-    - cron: '0 11 * * *'
+    # Every 6 hours (midnight, 6 AM, noon, 6 PM UTC)
+    - cron: '0 */6 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
