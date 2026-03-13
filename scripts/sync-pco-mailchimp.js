@@ -167,7 +167,7 @@ async function upsertToMailchimp(people) {
         status_if_new: 'subscribed',
         status: 'subscribed',
         merge_fields: {
-          FNAME: person.firstName,
+          MMERGE3: person.firstName,
           LNAME: person.lastName,
         },
       });
