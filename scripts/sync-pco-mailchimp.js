@@ -12,6 +12,7 @@
  *   PLANNING_CENTER_APP_ID  – Planning Center API application ID
  *   PLANNING_CENTER_SECRET  – Planning Center API secret
  *   MAILCHIMP_API_KEY       – Mailchimp API key (e.g. abc123def456-us7)
+ *   DRY_RUN                – Set to "true" to only log who would be synced
  */
 
 const https = require('https');
@@ -28,17 +29,19 @@ const PCO_APP_ID = process.env.PLANNING_CENTER_APP_ID;
 const PCO_APP_SECRET = process.env.PLANNING_CENTER_SECRET;
 const MAILCHIMP_API_KEY = process.env.MAILCHIMP_API_KEY;
 
+const DRY_RUN = process.env.DRY_RUN === 'true';
+
 if (!PCO_APP_ID || !PCO_APP_SECRET) {
   console.error('Error: PLANNING_CENTER_APP_ID and PLANNING_CENTER_SECRET must be set.');
   process.exit(1);
 }
-if (!MAILCHIMP_API_KEY) {
-  console.error('Error: MAILCHIMP_API_KEY must be set.');
+if (!DRY_RUN && !MAILCHIMP_API_KEY) {
+  console.error('Error: MAILCHIMP_API_KEY must be set (or set DRY_RUN=true).');
   process.exit(1);
 }
 
 const PCO_AUTH = 'Basic ' + Buffer.from(`${PCO_APP_ID}:${PCO_APP_SECRET}`).toString('base64');
-const MC_DC = MAILCHIMP_API_KEY.split('-').pop();
+const MC_DC = MAILCHIMP_API_KEY ? MAILCHIMP_API_KEY.split('-').pop() : null;
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
@@ -194,9 +197,11 @@ async function upsertToMailchimp(people) {
 
 async function main() {
   console.log('=== Planning Center → Mailchimp Sync ===\n');
+  if (DRY_RUN) console.log('*** DRY RUN — no changes will be made to Mailchimp ***\n');
   console.log(`PCO List ID: ${PCO_LIST_ID}`);
   console.log(`Mailchimp Audience ID: ${MAILCHIMP_AUDIENCE_ID}`);
-  console.log(`Mailchimp DC: ${MC_DC}\n`);
+  if (!DRY_RUN) console.log(`Mailchimp DC: ${MC_DC}`);
+  console.log();
 
   console.log('Step 1: Fetching people from Planning Center list...');
   const people = await fetchPCOListPeople();
@@ -204,6 +209,20 @@ async function main() {
 
   if (people.length === 0) {
     console.log('No people to sync. Exiting.');
+    return;
+  }
+
+  if (DRY_RUN) {
+    console.log('People who would be synced to Mailchimp:\n');
+    console.log('  #   Email                                  First Name       Last Name');
+    console.log('  --- ---------------------------------------- ---------------- ----------------');
+    people.forEach((p, i) => {
+      const num = String(i + 1).padStart(3);
+      const email = p.email.padEnd(40);
+      const first = p.firstName.padEnd(16);
+      console.log(`  ${num} ${email} ${first} ${p.lastName}`);
+    });
+    console.log(`\n=== Dry Run Complete — ${people.length} subscriber(s) would be synced ===`);
     return;
   }
 
