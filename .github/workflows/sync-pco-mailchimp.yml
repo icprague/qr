@@ -1,0 +1,26 @@
+name: Sync Planning Center to Mailchimp
+
+on:
+  schedule:
+    # Every night at 2:00 AM Prague time (CET = UTC+1, CEST = UTC+2)
+    - cron: '0 1 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Sync PCO newsletter list to Mailchimp
+        env:
+          PCO_APP_ID: ${{ secrets.PCO_APP_ID }}
+          PCO_APP_SECRET: ${{ secrets.PCO_APP_SECRET }}
+          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
+        run: node scripts/sync-pco-mailchimp.js
