@@ -20,7 +20,7 @@ jobs:
 
       - name: Sync PCO newsletter list to Mailchimp
         env:
-          PCO_APP_ID: ${{ secrets.PCO_APP_ID }}
-          PCO_APP_SECRET: ${{ secrets.PCO_APP_SECRET }}
+          PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
+          PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
         run: node scripts/sync-pco-mailchimp.js

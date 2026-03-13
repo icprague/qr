@@ -9,9 +9,9 @@
  * (add new subscribers or update existing ones without error).
  *
  * Environment variables:
- *   PCO_APP_ID        – Planning Center API application ID
- *   PCO_APP_SECRET    – Planning Center API secret
- *   MAILCHIMP_API_KEY – Mailchimp API key (e.g. abc123def456-us7)
+ *   PLANNING_CENTER_APP_ID  – Planning Center API application ID
+ *   PLANNING_CENTER_SECRET  – Planning Center API secret
+ *   MAILCHIMP_API_KEY       – Mailchimp API key (e.g. abc123def456-us7)
  */
 
 const https = require('https');
@@ -24,12 +24,12 @@ const crypto = require('crypto');
 const PCO_LIST_ID = '4883625';
 const MAILCHIMP_AUDIENCE_ID = 'c35238d169';
 
-const PCO_APP_ID = process.env.PCO_APP_ID;
-const PCO_APP_SECRET = process.env.PCO_APP_SECRET;
+const PCO_APP_ID = process.env.PLANNING_CENTER_APP_ID;
+const PCO_APP_SECRET = process.env.PLANNING_CENTER_SECRET;
 const MAILCHIMP_API_KEY = process.env.MAILCHIMP_API_KEY;
 
 if (!PCO_APP_ID || !PCO_APP_SECRET) {
-  console.error('Error: PCO_APP_ID and PCO_APP_SECRET must be set.');
+  console.error('Error: PLANNING_CENTER_APP_ID and PLANNING_CENTER_SECRET must be set.');
   process.exit(1);
 }
 if (!MAILCHIMP_API_KEY) {
