@@ -160,15 +160,14 @@ function isSentToday(sendTimeStr) {
 }
 
 /**
- * Check whether it's past the final retry hour in Prague timezone.
- * The workflow runs at 3:15, 4:15, 5:15 PM Prague. At 5:15 PM (hour 17)
- * it's the last attempt, so we send the fail email. Earlier runs exit quietly.
+ * Check whether this is the last scheduled attempt.
+ * The workflow passes ATTEMPT (1-based) and MAX_ATTEMPTS via env vars.
+ * Manual triggers (no ATTEMPT set) are treated as the last attempt.
  */
 function isLastAttempt() {
-  const pragueHour = Number(
-    new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague', hour: 'numeric', hour12: false })
-  );
-  return pragueHour >= 17;
+  const attempt = Number(process.env.ATTEMPT) || 0;
+  const maxAttempts = Number(process.env.MAX_ATTEMPTS) || 0;
+  return !attempt || !maxAttempts || attempt >= maxAttempts;
 }
 
 async function sendFailureEmail(campaignSubject, campaignSendTime) {
