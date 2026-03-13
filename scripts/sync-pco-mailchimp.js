@@ -165,6 +165,7 @@ async function upsertToMailchimp(people) {
       const result = await mailchimpPut(endpoint, {
         email_address: person.email,
         status_if_new: 'subscribed',
+        status: 'subscribed',
         merge_fields: {
           FNAME: person.firstName,
           LNAME: person.lastName,
