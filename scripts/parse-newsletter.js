@@ -229,7 +229,9 @@ function isFooterContent(text) {
          lowerText.indexOf('follow us') >= 0 ||
          lowerText.indexOf('view this email in your browser') >= 0 ||
          lowerText.indexOf('view email in browser') >= 0 ||
-         lowerText.indexOf('in this issue') >= 0;
+         lowerText.indexOf('view in your browser') >= 0 ||
+         lowerText.indexOf('in this issue') >= 0 ||
+         lowerText.trim() === 'subscribe';
 }
 
 /**
