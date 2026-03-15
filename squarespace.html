@@ -18,7 +18,24 @@
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', 'G-YL2P0BP685');
+
+// --- Persist UTM source so returning visitors keep their source attribution ---
+// QR codes use: ?utm_source=pew | card | giving | slide
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var src = params.get('utm_source');
+
+  // If this page load has a utm_source, store it for the browser session.
+  if (src) sessionStorage.setItem('icp_utm_source', src);
+
+  // Set campaign source globally so EVERY GA4 event (page_view, button_click, etc.)
+  // carries it — even events that fire after a 30-min session timeout mid-service.
+  var stored = sessionStorage.getItem('icp_utm_source');
+  if (stored) gtag('set', { campaign_source: stored });
+})();
+
+// Disable the automatic page_view — icpShow() sends it manually with the real URL on first load.
+gtag('config', 'G-YL2P0BP685', { send_page_view: false });
 </script>
 
 <style>
@@ -455,10 +472,8 @@ body,
       // For subsequent sub-views, use the virtual path since UTMs were already captured.
       var loc = (!icpShow._fired) ? window.location.href : window.location.origin + paths[v];
       icpShow._fired = true;
-      gtag('event', 'page_view', {
-        page_title: titles[v],
-        page_location: loc
-      });
+
+      gtag('event', 'page_view', { page_title: titles[v], page_location: loc });
     }
   }
 
