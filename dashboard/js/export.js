@@ -2,14 +2,75 @@
  * Export: PNG, PDF, Google Sheets.
  */
 var Export = (function () {
-  /** Export the dashboard div as a PNG download. */
-  async function toPNG() {
-    var el = document.getElementById('dashboard');
-    var canvas = await html2canvas(el, {
+  var PADDING = 40; // px padding around exported content
+
+  /** Get the date label currently shown in the dashboard. */
+  function getDateLabel() {
+    var el = document.getElementById('date-label');
+    return el ? el.textContent : '';
+  }
+
+  /** Create a wrapper with title + padding for export, capture it, then clean up. */
+  async function captureWithTitle() {
+    var dashboard = document.getElementById('dashboard');
+    var dateLabel = getDateLabel();
+
+    // Create export wrapper
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'padding: ' + PADDING + 'px; background: #fff; display: inline-block;';
+
+    // Title
+    var title = document.createElement('div');
+    title.style.cssText = 'font-family: Inter, system-ui, sans-serif; margin-bottom: 24px; text-align: center;';
+    title.innerHTML = '<div style="font-size: 24px; font-weight: 700; color: #1a1a2e;">QR Code Analytics</div>' +
+      '<div style="font-size: 14px; color: #666; margin-top: 6px;">' + dateLabel + '</div>';
+
+    wrapper.appendChild(title);
+
+    // Clone the dashboard so we don't disturb the live DOM
+    var clone = dashboard.cloneNode(true);
+    clone.style.display = 'block';
+    wrapper.appendChild(clone);
+
+    // Append off-screen for html2canvas to render
+    wrapper.style.position = 'fixed';
+    wrapper.style.left = '-9999px';
+    wrapper.style.top = '0';
+    document.body.appendChild(wrapper);
+
+    // Need to re-draw charts on the cloned canvases — html2canvas can't capture
+    // WebGL/canvas content from clones, so capture from the live dashboard instead.
+    // Remove wrapper and use a different approach: inject title into live DOM temporarily.
+    document.body.removeChild(wrapper);
+
+    // Inject title before dashboard content temporarily
+    var titleEl = document.createElement('div');
+    titleEl.id = '_export-title';
+    titleEl.style.cssText = 'text-align: center; margin-bottom: 24px;';
+    titleEl.innerHTML = '<div style="font-size: 24px; font-weight: 700; color: #1a1a2e;">QR Code Analytics</div>' +
+      '<div style="font-size: 14px; color: #666; margin-top: 6px;">' + dateLabel + '</div>';
+    dashboard.insertBefore(titleEl, dashboard.firstChild);
+
+    // Add padding to dashboard temporarily
+    var origPadding = dashboard.style.padding;
+    dashboard.style.padding = PADDING + 'px';
+
+    var canvas = await html2canvas(dashboard, {
       scale: 2,
       backgroundColor: '#ffffff',
       logging: false
     });
+
+    // Clean up
+    dashboard.removeChild(titleEl);
+    dashboard.style.padding = origPadding;
+
+    return canvas;
+  }
+
+  /** Export the dashboard div as a PNG download. */
+  async function toPNG() {
+    var canvas = await captureWithTitle();
     var link = document.createElement('a');
     link.download = 'icp-qr-analytics.png';
     link.href = canvas.toDataURL('image/png');
@@ -18,12 +79,7 @@ var Export = (function () {
 
   /** Export the dashboard div as a PDF download. */
   async function toPDF() {
-    var el = document.getElementById('dashboard');
-    var canvas = await html2canvas(el, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      logging: false
-    });
+    var canvas = await captureWithTitle();
     var imgData = canvas.toDataURL('image/png');
     var pdf = new jspdf.jsPDF({
       orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
