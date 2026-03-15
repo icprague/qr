@@ -107,13 +107,25 @@ var GA = (function () {
       limit: 10000
     };
 
+    // Per-source totals — single dimension so users are deduplicated per source
+    var perSourceBody = {
+      dateRanges: dateRanges,
+      dimensions: [
+        { name: 'sessionSource' }
+      ],
+      metrics: metrics,
+      dimensionFilter: DIMENSION_FILTER,
+      limit: 10000
+    };
+
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
       fetchJSON(url, headers, totalsBody),
-      fetchJSON(url, headers, perButtonBody)
+      fetchJSON(url, headers, perButtonBody),
+      fetchJSON(url, headers, perSourceBody)
     ]);
 
-    return parseReport(results[0], results[1], results[2]);
+    return parseReport(results[0], results[1], results[2], results[3]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -129,7 +141,7 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData, perButtonData) {
+  function parseReport(detailData, totalsData, perButtonData, perSourceData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
@@ -162,8 +174,24 @@ var GA = (function () {
       });
     }
 
+    // Deduplicated per-source totals (single-dimension query)
+    var bySource = [];
+    if (perSourceData && perSourceData.rows) {
+      perSourceData.rows.forEach(function (row) {
+        var src = row.dimensionValues[0].value;
+        bySource.push({
+          key: src,
+          label: sourceLabel(src),
+          eventCount: parseInt(row.metricValues[0].value, 10) || 0,
+          totalUsers: parseInt(row.metricValues[1].value, 10) || 0,
+          newUsers:   parseInt(row.metricValues[2].value, 10) || 0
+        });
+      });
+      bySource.sort(function (a, b) { return b.eventCount - a.eventCount; });
+    }
+
     if (!detailData.rows || detailData.rows.length === 0) {
-      return { rows: rows, totals: totals, byButton: byButton };
+      return { rows: rows, totals: totals, byButton: byButton, bySource: bySource };
     }
 
     detailData.rows.forEach(function (row) {
@@ -184,7 +212,7 @@ var GA = (function () {
       });
     });
 
-    return { rows: rows, totals: totals, byButton: byButton };
+    return { rows: rows, totals: totals, byButton: byButton, bySource: bySource };
   }
 
   /**
