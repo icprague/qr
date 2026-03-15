@@ -177,14 +177,17 @@ var GA = (function () {
 
     // Deduplicated new vs returning totals (single newVsReturning dimension)
     if (nvrTotalsData && nvrTotalsData.rows) {
+      console.log('[NVR totals] rows:', JSON.stringify(nvrTotalsData.rows));
       nvrTotalsData.rows.forEach(function (row) {
         var nvrType = row.dimensionValues[0].value;
         var users = parseInt(row.metricValues[1].value, 10) || 0;
+        console.log('[NVR totals] type="' + nvrType + '" users=' + users);
         if (nvrType === 'new') {
           totals.newUsers = users;
-        } else {
+        } else if (nvrType === 'returning') {
           totals.returningUsers = users;
         }
+        // ignore "(not set)" or other values
       });
     }
 
@@ -210,16 +213,18 @@ var GA = (function () {
     // Per-button new vs returning breakdown
     var byButtonNvr = {};
     if (perButtonNvrData && perButtonNvrData.rows) {
+      console.log('[NVR per-button] rows:', JSON.stringify(perButtonNvrData.rows));
       perButtonNvrData.rows.forEach(function (row) {
         var buttonName = row.dimensionValues[0].value;
-        var nvrType = row.dimensionValues[1].value; // "new" or "returning"
+        var nvrType = row.dimensionValues[1].value;
         var users = parseInt(row.metricValues[1].value, 10) || 0;
+        console.log('[NVR per-button] button="' + buttonName + '" type="' + nvrType + '" users=' + users);
         if (!byButtonNvr[buttonName]) {
           byButtonNvr[buttonName] = { newUsers: 0, returningUsers: 0 };
         }
         if (nvrType === 'new') {
           byButtonNvr[buttonName].newUsers += users;
-        } else {
+        } else if (nvrType === 'returning') {
           byButtonNvr[buttonName].returningUsers += users;
         }
       });
