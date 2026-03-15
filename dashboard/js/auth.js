@@ -17,12 +17,12 @@ var Auth = (function () {
 
   function waitForGIS() {
     return new Promise(function (resolve) {
-      if (typeof google !== 'undefined' && google.accounts) {
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.initTokenModel) {
         resolve();
         return;
       }
       var interval = setInterval(function () {
-        if (typeof google !== 'undefined' && google.accounts) {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.initTokenModel) {
           clearInterval(interval);
           resolve();
         }
