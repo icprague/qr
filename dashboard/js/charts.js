@@ -70,7 +70,7 @@ var Charts = (function () {
         },
         scales: {
           x: { grid: { display: false } },
-          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f0f0f5' } }
+          y: { beginAtZero: true, grace: '15%', ticks: { precision: 0 }, grid: { color: '#f0f0f5' } }
         }
       },
       plugins: [barValuePlugin]
