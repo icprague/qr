@@ -19,41 +19,18 @@ window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 
-// --- Persist UTM params so returning visitors keep their source attribution ---
+// --- Persist UTM source so returning visitors keep their source attribution ---
+// QR codes use: ?utm_source=pew | card | giving | slide
 (function () {
-  var defined = function (v) { return v !== null && v !== ''; };
   var params = new URLSearchParams(window.location.search);
-  var utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+  var src = params.get('utm_source');
 
-  // If this page load has UTM params, store them for the duration of the browser session.
-  if (defined(params.get('utm_source'))) {
-    utmKeys.forEach(function (k) {
-      var v = params.get(k);
-      if (defined(v)) sessionStorage.setItem('icp_' + k, v);
-    });
-  }
+  // If this page load has a utm_source, store it for the browser session.
+  if (src) sessionStorage.setItem('icp_utm_source', src);
 
-  // Build campaign_params from stored values (survives tab switches, session timeouts, return visits).
-  var stored = {};
-  var gaMap = {
-    utm_source: 'campaign_source',
-    utm_medium: 'campaign_medium',
-    utm_campaign: 'campaign_name',
-    utm_content: 'campaign_content',
-    utm_term: 'campaign_term'
-  };
-  utmKeys.forEach(function (k) {
-    var v = sessionStorage.getItem('icp_' + k);
-    if (v) stored[gaMap[k]] = v;
-  });
-
-  // If no medium was provided, default to 'qr' so GA doesn't bucket it as "(not set)".
-  if (stored.campaign_source && !stored.campaign_medium) {
-    stored.campaign_medium = 'qr';
-  }
-
-  // Expose for use by icpShow page_view events.
-  window.__icpCampaign = stored;
+  // Build campaign source from stored value (survives session timeouts mid-service, return visits).
+  var stored = sessionStorage.getItem('icp_utm_source');
+  window.__icpCampaign = stored ? { campaign_source: stored } : {};
 })();
 
 // Disable the automatic page_view — icpShow() sends it manually with campaign params attached.
