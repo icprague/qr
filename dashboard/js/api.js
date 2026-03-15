@@ -73,8 +73,7 @@ var GA = (function () {
     var dateRanges = [{ startDate: startDate, endDate: endDate }];
     var metrics = [
       { name: 'eventCount' },
-      { name: 'totalUsers' },
-      { name: 'newUsers' }
+      { name: 'totalUsers' }
     ];
 
     // Detailed breakdown by button × source
@@ -118,14 +117,27 @@ var GA = (function () {
       limit: 10000
     };
 
+    // Per-button × newVsReturning — shows new vs returning users per button
+    var perButtonNvrBody = {
+      dateRanges: dateRanges,
+      dimensions: [
+        { name: 'customEvent:button_name' },
+        { name: 'newVsReturning' }
+      ],
+      metrics: metrics,
+      dimensionFilter: DIMENSION_FILTER,
+      limit: 10000
+    };
+
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
       fetchJSON(url, headers, totalsBody),
       fetchJSON(url, headers, perButtonBody),
-      fetchJSON(url, headers, perSourceBody)
+      fetchJSON(url, headers, perSourceBody),
+      fetchJSON(url, headers, perButtonNvrBody)
     ]);
 
-    return parseReport(results[0], results[1], results[2], results[3]);
+    return parseReport(results[0], results[1], results[2], results[3], results[4]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -141,16 +153,15 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData, perButtonData, perSourceData) {
+  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
-    var totals = { eventCount: 0, totalUsers: 0, newUsers: 0 };
+    var totals = { eventCount: 0, totalUsers: 0 };
     if (totalsData.rows && totalsData.rows.length > 0) {
       var t = totalsData.rows[0].metricValues;
       totals.eventCount = parseInt(t[0].value, 10) || 0;
       totals.totalUsers = parseInt(t[1].value, 10) || 0;
-      totals.newUsers   = parseInt(t[2].value, 10) || 0;
     }
 
     // Deduplicated per-button totals (single-dimension query)
@@ -162,17 +173,46 @@ var GA = (function () {
           key: buttonName,
           label: LABELS[buttonName] || buttonName,
           eventCount: parseInt(row.metricValues[0].value, 10) || 0,
-          totalUsers: parseInt(row.metricValues[1].value, 10) || 0,
-          newUsers:   parseInt(row.metricValues[2].value, 10) || 0
+          totalUsers: parseInt(row.metricValues[1].value, 10) || 0
         });
       });
-      // Sort in stable order matching BUTTON_NAMES
       byButton = BUTTON_NAMES.filter(function (n) {
         return byButton.some(function (b) { return b.key === n; });
       }).map(function (n) {
         return byButton.find(function (b) { return b.key === n; });
       });
     }
+
+    // Per-button new vs returning breakdown
+    // Produces: { button_key: { newUsers: N, returningUsers: N } }
+    var byButtonNvr = {};
+    var totalNewUsers = 0;
+    var totalReturningUsers = 0;
+    if (perButtonNvrData && perButtonNvrData.rows) {
+      perButtonNvrData.rows.forEach(function (row) {
+        var buttonName = row.dimensionValues[0].value;
+        var nvrType = row.dimensionValues[1].value; // "new" or "returning"
+        var users = parseInt(row.metricValues[1].value, 10) || 0;
+        if (!byButtonNvr[buttonName]) {
+          byButtonNvr[buttonName] = { newUsers: 0, returningUsers: 0 };
+        }
+        if (nvrType === 'new') {
+          byButtonNvr[buttonName].newUsers += users;
+          totalNewUsers += users;
+        } else {
+          byButtonNvr[buttonName].returningUsers += users;
+          totalReturningUsers += users;
+        }
+      });
+    }
+    // Attach nvr data to byButton entries
+    byButton.forEach(function (b) {
+      var nvr = byButtonNvr[b.key] || { newUsers: 0, returningUsers: 0 };
+      b.newUsers = nvr.newUsers;
+      b.returningUsers = nvr.returningUsers;
+    });
+    totals.newUsers = totalNewUsers;
+    totals.returningUsers = totalReturningUsers;
 
     // Deduplicated per-source totals (single-dimension query)
     var bySource = [];
@@ -183,8 +223,7 @@ var GA = (function () {
           key: src,
           label: sourceLabel(src),
           eventCount: parseInt(row.metricValues[0].value, 10) || 0,
-          totalUsers: parseInt(row.metricValues[1].value, 10) || 0,
-          newUsers:   parseInt(row.metricValues[2].value, 10) || 0
+          totalUsers: parseInt(row.metricValues[1].value, 10) || 0
         });
       });
       bySource.sort(function (a, b) { return b.eventCount - a.eventCount; });
@@ -199,7 +238,6 @@ var GA = (function () {
       var source = row.dimensionValues[1].value;
       var eventCount = parseInt(row.metricValues[0].value, 10) || 0;
       var totalUsers = parseInt(row.metricValues[1].value, 10) || 0;
-      var newUsers = parseInt(row.metricValues[2].value, 10) || 0;
 
       rows.push({
         eventName: buttonName,
@@ -207,8 +245,7 @@ var GA = (function () {
         source: source,
         sourceLabel: sourceLabel(source),
         eventCount: eventCount,
-        totalUsers: totalUsers,
-        newUsers: newUsers
+        totalUsers: totalUsers
       });
     });
 
@@ -217,18 +254,17 @@ var GA = (function () {
 
   /**
    * Aggregate rows by a key (e.g. 'eventName' or 'source').
-   * Returns a Map-like array of { key, label, eventCount, totalUsers, newUsers }.
+   * Returns a Map-like array of { key, label, eventCount, totalUsers }.
    */
   function aggregateBy(rows, keyField, labelField) {
     var map = {};
     rows.forEach(function (r) {
       var k = r[keyField];
       if (!map[k]) {
-        map[k] = { key: k, label: r[labelField], eventCount: 0, totalUsers: 0, newUsers: 0 };
+        map[k] = { key: k, label: r[labelField], eventCount: 0, totalUsers: 0 };
       }
       map[k].eventCount += r.eventCount;
       map[k].totalUsers += r.totalUsers;
-      map[k].newUsers += r.newUsers;
     });
     // Return in a stable order matching BUTTON_NAMES for event-based aggregation
     if (keyField === 'eventName') {

@@ -22,31 +22,40 @@ var Charts = (function () {
     Object.keys(_charts).forEach(destroy);
   }
 
+  var GREEN = '#36b37e';
+
   /**
    * Vertical bar chart: users per button.
-   * showNew = false → single "Total users" bar
-   * showNew = true  → grouped "Total users" + "New users"
+   * showNvr = false → single "Total users" bar
+   * showNvr = true  → grouped "New users" + "Returning users"
    */
-  function renderUsersChart(byEvent, showNew) {
+  function renderUsersChart(byEvent, showNvr) {
     destroy('chart-users');
     var ctx = document.getElementById('chart-users').getContext('2d');
 
-    var datasets = [{
-      label: 'Total users',
-      data: byEvent.map(function (e) { return e.totalUsers; }),
-      backgroundColor: PURPLE,
-      borderRadius: 4,
-      maxBarThickness: showNew ? 36 : 48
-    }];
-
-    if (showNew) {
-      datasets.push({
-        label: 'New users',
-        data: byEvent.map(function (e) { return e.newUsers; }),
-        backgroundColor: PURPLE_LIGHT,
+    var datasets;
+    if (showNvr) {
+      datasets = [{
+        label: 'New visitors',
+        data: byEvent.map(function (e) { return e.newUsers || 0; }),
+        backgroundColor: GREEN,
         borderRadius: 4,
         maxBarThickness: 36
-      });
+      }, {
+        label: 'Returning',
+        data: byEvent.map(function (e) { return e.returningUsers || 0; }),
+        backgroundColor: PURPLE,
+        borderRadius: 4,
+        maxBarThickness: 36
+      }];
+    } else {
+      datasets = [{
+        label: 'Total users',
+        data: byEvent.map(function (e) { return e.totalUsers; }),
+        backgroundColor: PURPLE,
+        borderRadius: 4,
+        maxBarThickness: 48
+      }];
     }
 
     _charts['chart-users'] = new Chart(ctx, {
@@ -178,11 +187,10 @@ var Charts = (function () {
       var sk = r.source;
       if (!map[sk]) map[sk] = {};
       if (!map[sk][r.eventName]) {
-        map[sk][r.eventName] = { eventCount: 0, totalUsers: 0, newUsers: 0 };
+        map[sk][r.eventName] = { eventCount: 0, totalUsers: 0 };
       }
       map[sk][r.eventName].eventCount += r.eventCount;
       map[sk][r.eventName].totalUsers += r.totalUsers;
-      map[sk][r.eventName].newUsers += r.newUsers;
     });
     return map;
   }

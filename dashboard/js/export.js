@@ -40,13 +40,23 @@ var Export = (function () {
    */
   async function toSheets(token, reportData, dateLabel) {
     // Build rows for the sheet
-    var header = ['Button', 'Source', 'Clicks', 'Total Users', 'New Users'];
+    var header = ['Button', 'Source', 'Clicks', 'Total Users'];
     var rows = [header];
     reportData.rows.forEach(function (r) {
-      rows.push([r.label, r.sourceLabel, r.eventCount, r.totalUsers, r.newUsers]);
+      rows.push([r.label, r.sourceLabel, r.eventCount, r.totalUsers]);
     });
     rows.push([]);
-    rows.push(['Total', '', reportData.totals.eventCount, reportData.totals.totalUsers, reportData.totals.newUsers]);
+    rows.push(['Total', '', reportData.totals.eventCount, reportData.totals.totalUsers]);
+
+    // Add new vs returning summary
+    if (reportData.byButton && reportData.byButton.length > 0) {
+      rows.push([]);
+      rows.push(['Button', 'New Visitors', 'Returning']);
+      reportData.byButton.forEach(function (b) {
+        rows.push([b.label, b.newUsers || 0, b.returningUsers || 0]);
+      });
+      rows.push(['Total', reportData.totals.newUsers || 0, reportData.totals.returningUsers || 0]);
+    }
 
     var title = 'ICP QR Analytics — ' + dateLabel;
 
@@ -68,7 +78,9 @@ var Export = (function () {
     var spreadsheetId = sheet.spreadsheetId;
 
     // Write data
-    var range = 'Report!A1:E' + rows.length;
+    // Determine widest row for range
+    var maxCols = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
+    var range = 'Report!A1:' + String.fromCharCode(64 + maxCols) + rows.length;
     var updateResp = await fetch(
       'https://sheets.googleapis.com/v4/spreadsheets/' + spreadsheetId +
       '/values/' + encodeURIComponent(range) + '?valueInputOption=RAW',
