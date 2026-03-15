@@ -32,6 +32,12 @@ var Dates = (function () {
     var thisSun = mostRecentSunday(now);
     var lastSun = addDays(thisSun, -7);
 
+    // Midweek = Mon–Sat before each Sunday (the 6 days leading up to service)
+    var thisMidStart = addDays(thisSun, -6); // Monday
+    var thisMidEnd   = addDays(thisSun, -1); // Saturday
+    var lastMidStart = addDays(lastSun, -6);
+    var lastMidEnd   = addDays(lastSun, -1);
+
     return {
       'today':          { ranges: [{ start: t, end: t }], label: 'Today — ' + t },
       'yesterday':      { ranges: [{ start: y, end: y }], label: 'Yesterday — ' + y },
@@ -48,6 +54,22 @@ var Dates = (function () {
         ranges.reverse();
         labels.reverse();
         return { ranges: ranges, label: 'Last 4 Sundays: ' + labels.join(', '), comparison: true };
+      })(),
+      'this-midweek':   { ranges: [{ start: fmt(thisMidStart), end: fmt(thisMidEnd) }], label: 'This midweek — Mon ' + fmt(thisMidStart) + ' to Sat ' + fmt(thisMidEnd) },
+      'last-midweek':   { ranges: [{ start: fmt(lastMidStart), end: fmt(lastMidEnd) }], label: 'Last midweek — Mon ' + fmt(lastMidStart) + ' to Sat ' + fmt(lastMidEnd) },
+      'last-4-midweeks': (function () {
+        var ranges = [];
+        var labels = [];
+        for (var i = 0; i < 4; i++) {
+          var sun = addDays(thisSun, -7 * i);
+          var mStart = addDays(sun, -6);
+          var mEnd   = addDays(sun, -1);
+          ranges.push({ start: fmt(mStart), end: fmt(mEnd) });
+          labels.push(fmt(mStart));
+        }
+        ranges.reverse();
+        labels.reverse();
+        return { ranges: ranges, label: 'Last 4 midweeks: ' + labels.join(', '), comparison: true };
       })(),
       'last-7':         { ranges: [{ start: fmt(addDays(now, -6)), end: t }], label: 'Last 7 days' },
       'last-28':        { ranges: [{ start: fmt(addDays(now, -27)), end: t }], label: 'Last 28 days' },
