@@ -16,15 +16,20 @@ var Auth = (function () {
   ].join(' ');
 
   function waitForGIS() {
-    return new Promise(function (resolve) {
-      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.initTokenModel) {
+    return new Promise(function (resolve, reject) {
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.initTokenClient) {
         resolve();
         return;
       }
+      var elapsed = 0;
       var interval = setInterval(function () {
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.initTokenModel) {
+        elapsed += 100;
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.initTokenClient) {
           clearInterval(interval);
           resolve();
+        } else if (elapsed >= 10000) {
+          clearInterval(interval);
+          reject(new Error('Google Identity Services failed to load. Check your network or ad-blocker.'));
         }
       }, 100);
     });
@@ -36,7 +41,7 @@ var Auth = (function () {
 
     await waitForGIS();
 
-    _tokenClient = google.accounts.oauth2.initTokenModel({
+    _tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPES,
       callback: handleTokenResponse
