@@ -15,7 +15,7 @@
   var _allRows = null;
 
   // Toggle state
-  var _showNewUsers = false;
+  var _showNvr = false;
   var _showSourceButtons = false;
 
   // ── Bootstrap ──────────────────────────────────────────────────────
@@ -145,7 +145,7 @@
     _allRows = report.rows;
 
     renderSummaryCards(report.totals, _byEvent);
-    Charts.renderUsersChart(_byEvent, _showNewUsers);
+    Charts.renderUsersChart(_byEvent, _showNvr);
     Charts.renderSourcesChart(_bySource, _allRows, !_showSourceButtons);
   }
 
@@ -155,14 +155,15 @@
     document.getElementById('comparison-section').classList.remove('hidden');
     document.getElementById('date-label').textContent = _currentDateConfig.label;
 
-    var combinedTotals = { eventCount: 0, totalUsers: 0, newUsers: 0 };
+    var combinedTotals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
     var allRows = [];
     var allByButton = [];
     var allBySource = [];
     Object.values(results).forEach(function (r) {
       combinedTotals.eventCount += r.totals.eventCount;
       combinedTotals.totalUsers += r.totals.totalUsers;
-      combinedTotals.newUsers += r.totals.newUsers;
+      combinedTotals.newUsers += (r.totals.newUsers || 0);
+      combinedTotals.returningUsers += (r.totals.returningUsers || 0);
       allRows = allRows.concat(r.rows);
       if (r.byButton) allByButton = allByButton.concat(r.byButton);
       if (r.bySource) allBySource = allBySource.concat(r.bySource);
@@ -172,11 +173,12 @@
     var byButtonMap = {};
     allByButton.forEach(function (b) {
       if (!byButtonMap[b.key]) {
-        byButtonMap[b.key] = { key: b.key, label: b.label, eventCount: 0, totalUsers: 0, newUsers: 0 };
+        byButtonMap[b.key] = { key: b.key, label: b.label, eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
       }
       byButtonMap[b.key].eventCount += b.eventCount;
       byButtonMap[b.key].totalUsers += b.totalUsers;
-      byButtonMap[b.key].newUsers += b.newUsers;
+      byButtonMap[b.key].newUsers += (b.newUsers || 0);
+      byButtonMap[b.key].returningUsers += (b.returningUsers || 0);
     });
     var combinedByButton = GA.EVENT_NAMES.filter(function (n) { return byButtonMap[n]; })
       .map(function (n) { return byButtonMap[n]; });
@@ -185,11 +187,10 @@
     var bySourceMap = {};
     allBySource.forEach(function (s) {
       if (!bySourceMap[s.key]) {
-        bySourceMap[s.key] = { key: s.key, label: s.label, eventCount: 0, totalUsers: 0, newUsers: 0 };
+        bySourceMap[s.key] = { key: s.key, label: s.label, eventCount: 0, totalUsers: 0 };
       }
       bySourceMap[s.key].eventCount += s.eventCount;
       bySourceMap[s.key].totalUsers += s.totalUsers;
-      bySourceMap[s.key].newUsers += s.newUsers;
     });
     var combinedBySource = Object.values(bySourceMap).sort(function (a, b) {
       return b.eventCount - a.eventCount;
@@ -204,7 +205,7 @@
     _allRows = allRows;
 
     renderSummaryCards(combinedTotals, _byEvent);
-    Charts.renderUsersChart(_byEvent, _showNewUsers);
+    Charts.renderUsersChart(_byEvent, _showNvr);
     Charts.renderSourcesChart(_bySource, _allRows, !_showSourceButtons);
 
     // Per-date comparison chart
@@ -236,7 +237,8 @@
     var container = document.getElementById('summary-cards');
     var html = card('Total events', totals.eventCount, 'all buttons') +
       card('Unique users', totals.totalUsers, 'total sessions') +
-      card('New users', totals.newUsers, 'first visit');
+      card('New visitors', totals.newUsers || 0, 'first visit') +
+      card('Returning', totals.returningUsers || 0, 'been before');
 
     if (topButton) {
       html += card('Top button', topButton.totalUsers, topButton.label);
@@ -303,15 +305,15 @@
 
     // Users chart toggle
     var btnUsersOnly = document.getElementById('toggle-users-only');
-    var btnUsersNew = document.getElementById('toggle-users-new');
+    var btnUsersNvr = document.getElementById('toggle-users-nvr');
     btnUsersOnly.addEventListener('click', function () {
-      _showNewUsers = false;
-      setToggleActive(btnUsersOnly, btnUsersNew);
+      _showNvr = false;
+      setToggleActive(btnUsersOnly, btnUsersNvr);
       if (_byEvent) Charts.renderUsersChart(_byEvent, false);
     });
-    btnUsersNew.addEventListener('click', function () {
-      _showNewUsers = true;
-      setToggleActive(btnUsersNew, btnUsersOnly);
+    btnUsersNvr.addEventListener('click', function () {
+      _showNvr = true;
+      setToggleActive(btnUsersNvr, btnUsersOnly);
       if (_byEvent) Charts.renderUsersChart(_byEvent, true);
     });
 
