@@ -28,12 +28,13 @@ gtag('js', new Date());
   // If this page load has a utm_source, store it for the browser session.
   if (src) sessionStorage.setItem('icp_utm_source', src);
 
-  // Build campaign source from stored value (survives session timeouts mid-service, return visits).
+  // Set campaign source globally so EVERY GA4 event (page_view, button_click, etc.)
+  // carries it — even events that fire after a 30-min session timeout mid-service.
   var stored = sessionStorage.getItem('icp_utm_source');
-  window.__icpCampaign = stored ? { campaign_source: stored } : {};
+  if (stored) gtag('set', { campaign_source: stored });
 })();
 
-// Disable the automatic page_view — icpShow() sends it manually with campaign params attached.
+// Disable the automatic page_view — icpShow() sends it manually with the real URL on first load.
 gtag('config', 'G-YL2P0BP685', { send_page_view: false });
 </script>
 
@@ -472,13 +473,7 @@ body,
       var loc = (!icpShow._fired) ? window.location.href : window.location.origin + paths[v];
       icpShow._fired = true;
 
-      // Merge stored campaign params into every page_view so GA never sees "(not set)"
-      // even after session timeouts (30 min idle during a church service) or return visits.
-      var pvData = { page_title: titles[v], page_location: loc };
-      var cp = window.__icpCampaign || {};
-      for (var k in cp) { if (cp.hasOwnProperty(k)) pvData[k] = cp[k]; }
-
-      gtag('event', 'page_view', pvData);
+      gtag('event', 'page_view', { page_title: titles[v], page_location: loc });
     }
   }
 
