@@ -136,7 +136,9 @@
     document.getElementById('comparison-section').classList.add('hidden');
     document.getElementById('date-label').textContent = _currentDateConfig.label;
 
-    _byEvent = GA.aggregateBy(report.rows, 'eventName', 'label');
+    _byEvent = report.byButton.length > 0
+      ? report.byButton
+      : GA.aggregateBy(report.rows, 'eventName', 'label');
     _bySource = GA.aggregateBy(report.rows, 'source', 'sourceLabel');
     _allRows = report.rows;
 
@@ -153,14 +155,31 @@
 
     var combinedTotals = { eventCount: 0, totalUsers: 0, newUsers: 0 };
     var allRows = [];
+    var allByButton = [];
     Object.values(results).forEach(function (r) {
       combinedTotals.eventCount += r.totals.eventCount;
       combinedTotals.totalUsers += r.totals.totalUsers;
       combinedTotals.newUsers += r.totals.newUsers;
       allRows = allRows.concat(r.rows);
+      if (r.byButton) allByButton = allByButton.concat(r.byButton);
     });
 
-    _byEvent = GA.aggregateBy(allRows, 'eventName', 'label');
+    // Aggregate deduplicated per-button data across dates
+    var byButtonMap = {};
+    allByButton.forEach(function (b) {
+      if (!byButtonMap[b.key]) {
+        byButtonMap[b.key] = { key: b.key, label: b.label, eventCount: 0, totalUsers: 0, newUsers: 0 };
+      }
+      byButtonMap[b.key].eventCount += b.eventCount;
+      byButtonMap[b.key].totalUsers += b.totalUsers;
+      byButtonMap[b.key].newUsers += b.newUsers;
+    });
+    var combinedByButton = GA.EVENT_NAMES.filter(function (n) { return byButtonMap[n]; })
+      .map(function (n) { return byButtonMap[n]; });
+
+    _byEvent = combinedByButton.length > 0
+      ? combinedByButton
+      : GA.aggregateBy(allRows, 'eventName', 'label');
     _bySource = GA.aggregateBy(allRows, 'source', 'sourceLabel');
     _allRows = allRows;
 
