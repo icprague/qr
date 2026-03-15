@@ -18,7 +18,46 @@
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', 'G-YL2P0BP685');
+
+// --- Persist UTM params so returning visitors keep their source attribution ---
+(function () {
+  var defined = function (v) { return v !== null && v !== ''; };
+  var params = new URLSearchParams(window.location.search);
+  var utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+
+  // If this page load has UTM params, store them for the duration of the browser session.
+  if (defined(params.get('utm_source'))) {
+    utmKeys.forEach(function (k) {
+      var v = params.get(k);
+      if (defined(v)) sessionStorage.setItem('icp_' + k, v);
+    });
+  }
+
+  // Build campaign_params from stored values (survives tab switches, session timeouts, return visits).
+  var stored = {};
+  var gaMap = {
+    utm_source: 'campaign_source',
+    utm_medium: 'campaign_medium',
+    utm_campaign: 'campaign_name',
+    utm_content: 'campaign_content',
+    utm_term: 'campaign_term'
+  };
+  utmKeys.forEach(function (k) {
+    var v = sessionStorage.getItem('icp_' + k);
+    if (v) stored[gaMap[k]] = v;
+  });
+
+  // If no medium was provided, default to 'qr' so GA doesn't bucket it as "(not set)".
+  if (stored.campaign_source && !stored.campaign_medium) {
+    stored.campaign_medium = 'qr';
+  }
+
+  // Expose for use by icpShow page_view events.
+  window.__icpCampaign = stored;
+})();
+
+// Disable the automatic page_view — icpShow() sends it manually with campaign params attached.
+gtag('config', 'G-YL2P0BP685', { send_page_view: false });
 </script>
 
 <style>
@@ -455,10 +494,14 @@ body,
       // For subsequent sub-views, use the virtual path since UTMs were already captured.
       var loc = (!icpShow._fired) ? window.location.href : window.location.origin + paths[v];
       icpShow._fired = true;
-      gtag('event', 'page_view', {
-        page_title: titles[v],
-        page_location: loc
-      });
+
+      // Merge stored campaign params into every page_view so GA never sees "(not set)"
+      // even after session timeouts (30 min idle during a church service) or return visits.
+      var pvData = { page_title: titles[v], page_location: loc };
+      var cp = window.__icpCampaign || {};
+      for (var k in cp) { if (cp.hasOwnProperty(k)) pvData[k] = cp[k]; }
+
+      gtag('event', 'page_view', pvData);
     }
   }
 
