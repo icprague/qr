@@ -104,14 +104,16 @@ var Charts = (function () {
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
+          layout: { padding: { right: 30 } },
           plugins: {
             legend: { display: false }
           },
           scales: {
-            x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f0f0f5' } },
+            x: { beginAtZero: true, grace: '10%', ticks: { precision: 0 }, grid: { color: '#f0f0f5' } },
             y: { grid: { display: false } }
           }
-        }
+        },
+        plugins: [hBarValuePlugin]
       });
     } else {
       // Grouped bar: source × button
@@ -144,6 +146,7 @@ var Charts = (function () {
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
+          layout: { padding: { right: 30 } },
           plugins: {
             legend: {
               position: 'top',
@@ -159,7 +162,7 @@ var Charts = (function () {
             }
           },
           scales: {
-            x: { beginAtZero: true, stacked: true, ticks: { precision: 0 }, grid: { color: '#f0f0f5' } },
+            x: { beginAtZero: true, stacked: true, grace: '10%', ticks: { precision: 0 }, grid: { color: '#f0f0f5' } },
             y: { stacked: true, grid: { display: false } }
           }
         },
@@ -226,6 +229,7 @@ var Charts = (function () {
     id: 'stackedBarLabels',
     afterDatasetsDraw: function (chart) {
       var ctx = chart.ctx;
+      // Per-segment labels (white, inside each segment)
       chart.data.datasets.forEach(function (dataset, di) {
         var meta = chart.getDatasetMeta(di);
         meta.data.forEach(function (bar, index) {
@@ -233,7 +237,7 @@ var Charts = (function () {
           if (!val) return;
           var props = bar.getProps(['x', 'y', 'base', 'height'], true);
           var segWidth = Math.abs(props.x - props.base);
-          if (segWidth < 20) return; // skip if segment too narrow
+          if (segWidth < 20) return;
           var cx = (props.x + props.base) / 2;
           var cy = bar.y;
           ctx.save();
@@ -242,6 +246,47 @@ var Charts = (function () {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(val, cx, cy);
+          ctx.restore();
+        });
+      });
+      // Totals at the end of each stacked bar
+      var numLabels = chart.data.labels.length;
+      for (var i = 0; i < numLabels; i++) {
+        var total = 0;
+        var maxX = 0;
+        var barY = 0;
+        chart.data.datasets.forEach(function (dataset, di) {
+          total += (dataset.data[i] || 0);
+          var bar = chart.getDatasetMeta(di).data[i];
+          if (bar && bar.x > maxX) { maxX = bar.x; barY = bar.y; }
+        });
+        if (total === 0) continue;
+        ctx.save();
+        ctx.fillStyle = '#666';
+        ctx.font = '500 11px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(total, maxX + 6, barY);
+        ctx.restore();
+      }
+    }
+  };
+
+  var hBarValuePlugin = {
+    id: 'hBarValues',
+    afterDatasetsDraw: function (chart) {
+      var ctx = chart.ctx;
+      chart.data.datasets.forEach(function (dataset, di) {
+        var meta = chart.getDatasetMeta(di);
+        meta.data.forEach(function (bar, index) {
+          var val = dataset.data[index];
+          if (val === 0) return;
+          ctx.save();
+          ctx.fillStyle = '#666';
+          ctx.font = '500 11px Inter, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(val, bar.x + 6, bar.y);
           ctx.restore();
         });
       });
