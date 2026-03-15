@@ -76,6 +76,7 @@ var GA = (function () {
     }
 
     var data = await resp.json();
+    console.log('GA API response (' + startDate + ' to ' + endDate + '):', data);
     return parseReport(data);
   }
 
