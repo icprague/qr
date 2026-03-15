@@ -26,8 +26,8 @@ var GA = (function () {
     newsletter: 'Newsletter',
     connect_card: 'Connect Card',
     supporting_icp: 'Supporting ICP',
-    giving_usd: 'Stripe',
-    giving_czk: 'Giving (CZK)',
+    giving_usd: 'Card Payment',
+    giving_czk: 'Czech Bank Transfer',
     location: 'Location'
   };
 
