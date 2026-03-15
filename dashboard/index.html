@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ICP QR Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <h1>ICP QR Analytics</h1>
+      <p>Sign in with your Google account to access GA data.</p>
+      <button id="btn-signin" class="btn-primary" disabled>Sign in with Google</button>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <header class="header">
+      <div class="header-left">
+        <h1>ICP QR Analytics</h1>
+      </div>
+      <div class="header-right">
+        <span id="user-email" class="user-email"></span>
+        <button id="btn-signout" class="btn-small">Sign out</button>
+      </div>
+    </header>
+
+    <div class="controls">
+      <div class="date-controls">
+        <div class="presets">
+          <button class="preset-btn" data-preset="today">Today</button>
+          <button class="preset-btn" data-preset="yesterday">Yesterday</button>
+          <button class="preset-btn" data-preset="this-sunday">This Sunday</button>
+          <button class="preset-btn" data-preset="last-sunday">Last Sunday</button>
+          <button class="preset-btn" data-preset="last-4-sundays">Last 4 Sundays</button>
+          <button class="preset-btn" data-preset="last-7">Last 7 days</button>
+          <button class="preset-btn" data-preset="last-28">Last 28 days</button>
+          <button class="preset-btn" data-preset="this-month">This month</button>
+          <button class="preset-btn" data-preset="custom">Custom</button>
+        </div>
+        <div id="custom-range" class="custom-range hidden">
+          <input type="date" id="date-start">
+          <span>to</span>
+          <input type="date" id="date-end">
+          <button id="btn-apply-range" class="btn-small">Apply</button>
+        </div>
+      </div>
+      <div class="export-controls">
+        <button id="btn-export-png" class="btn-export" title="Export PNG">PNG</button>
+        <button id="btn-export-pdf" class="btn-export" title="Export PDF">PDF</button>
+        <button id="btn-export-sheets" class="btn-export" title="Export to Google Sheets">Sheets</button>
+      </div>
+    </div>
+
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <span>Fetching data…</span>
+    </div>
+
+    <div id="no-data" class="no-data hidden">
+      No data for this date range.
+    </div>
+
+    <div id="dashboard" class="dashboard hidden">
+      <section id="summary-section" class="section">
+        <h2 id="date-label" class="section-title"></h2>
+        <div id="summary-cards" class="summary-cards"></div>
+      </section>
+
+      <section class="section">
+        <h3 class="section-title">Clicks by Button</h3>
+        <div class="chart-container">
+          <canvas id="chart-buttons"></canvas>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3 class="section-title">Users by Button</h3>
+        <div class="chart-container">
+          <canvas id="chart-users"></canvas>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3 class="section-title">Traffic Sources</h3>
+        <div class="chart-container chart-container-small">
+          <canvas id="chart-sources"></canvas>
+        </div>
+      </section>
+
+      <section id="comparison-section" class="section hidden">
+        <h3 class="section-title">Week-on-Week Comparison</h3>
+        <div class="chart-container">
+          <canvas id="chart-comparison"></canvas>
+        </div>
+        <div id="comparison-table-wrap" class="table-wrap"></div>
+      </section>
+
+      <section class="section">
+        <h3 class="section-title">Detailed Breakdown</h3>
+        <div id="detail-table-wrap" class="table-wrap"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/dates.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
