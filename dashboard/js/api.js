@@ -129,15 +129,26 @@ var GA = (function () {
       limit: 10000
     };
 
+    // Deduplicated new vs returning totals (no button dimension)
+    var nvrTotalsBody = {
+      dateRanges: dateRanges,
+      dimensions: [
+        { name: 'newVsReturning' }
+      ],
+      metrics: metrics,
+      dimensionFilter: DIMENSION_FILTER
+    };
+
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
       fetchJSON(url, headers, totalsBody),
       fetchJSON(url, headers, perButtonBody),
       fetchJSON(url, headers, perSourceBody),
-      fetchJSON(url, headers, perButtonNvrBody)
+      fetchJSON(url, headers, perButtonNvrBody),
+      fetchJSON(url, headers, nvrTotalsBody)
     ]);
 
-    return parseReport(results[0], results[1], results[2], results[3], results[4]);
+    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -153,15 +164,28 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData) {
+  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
-    var totals = { eventCount: 0, totalUsers: 0 };
+    var totals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
     if (totalsData.rows && totalsData.rows.length > 0) {
       var t = totalsData.rows[0].metricValues;
       totals.eventCount = parseInt(t[0].value, 10) || 0;
       totals.totalUsers = parseInt(t[1].value, 10) || 0;
+    }
+
+    // Deduplicated new vs returning totals (single newVsReturning dimension)
+    if (nvrTotalsData && nvrTotalsData.rows) {
+      nvrTotalsData.rows.forEach(function (row) {
+        var nvrType = row.dimensionValues[0].value;
+        var users = parseInt(row.metricValues[1].value, 10) || 0;
+        if (nvrType === 'new') {
+          totals.newUsers = users;
+        } else {
+          totals.returningUsers = users;
+        }
+      });
     }
 
     // Deduplicated per-button totals (single-dimension query)
@@ -184,10 +208,7 @@ var GA = (function () {
     }
 
     // Per-button new vs returning breakdown
-    // Produces: { button_key: { newUsers: N, returningUsers: N } }
     var byButtonNvr = {};
-    var totalNewUsers = 0;
-    var totalReturningUsers = 0;
     if (perButtonNvrData && perButtonNvrData.rows) {
       perButtonNvrData.rows.forEach(function (row) {
         var buttonName = row.dimensionValues[0].value;
@@ -198,10 +219,8 @@ var GA = (function () {
         }
         if (nvrType === 'new') {
           byButtonNvr[buttonName].newUsers += users;
-          totalNewUsers += users;
         } else {
           byButtonNvr[buttonName].returningUsers += users;
-          totalReturningUsers += users;
         }
       });
     }
@@ -211,8 +230,6 @@ var GA = (function () {
       b.newUsers = nvr.newUsers;
       b.returningUsers = nvr.returningUsers;
     });
-    totals.newUsers = totalNewUsers;
-    totals.returningUsers = totalReturningUsers;
 
     // Deduplicated per-source totals (single-dimension query)
     var bySource = [];
