@@ -14,7 +14,7 @@
     try {
       var config = await AppConfig.load();
       _propertyId = config.GA_PROPERTY_ID;
-      Auth.init(config.OAUTH_CLIENT_ID, onSignIn, onSignOut);
+      await Auth.init(config.OAUTH_CLIENT_ID, onSignIn, onSignOut);
     } catch (e) {
       console.error('Config load failed:', e);
       document.querySelector('.auth-card p').textContent =
