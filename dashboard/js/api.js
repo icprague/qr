@@ -1,12 +1,16 @@
 /**
  * Google Analytics Data API v1 (REST).
  * Queries the runReport endpoint directly with specified dimensions/metrics.
+ *
+ * The QR landing pages fire:  gtag('event', 'button_click', { button_name: '...' })
+ * So the GA eventName is always "button_click" and the button identity lives
+ * in the custom dimension "customEvent:button_name".
  */
 var GA = (function () {
   var API_BASE = 'https://analyticsdata.googleapis.com/v1beta/properties/';
 
-  /** Event names we care about. */
-  var EVENT_NAMES = [
+  /** button_name values we care about. */
+  var BUTTON_NAMES = [
     'order_of_worship',
     'newsletter',
     'connect_card',
@@ -16,7 +20,7 @@ var GA = (function () {
     'location'
   ];
 
-  /** Human-friendly labels for event names. */
+  /** Human-friendly labels for button names. */
   var LABELS = {
     order_of_worship: 'Order of Worship',
     newsletter: 'Newsletter',
@@ -42,7 +46,7 @@ var GA = (function () {
     var body = {
       dateRanges: [{ startDate: startDate, endDate: endDate }],
       dimensions: [
-        { name: 'eventName' },
+        { name: 'customEvent:button_name' },
         { name: 'sessionSource' }
       ],
       metrics: [
@@ -51,11 +55,21 @@ var GA = (function () {
         { name: 'newUsers' }
       ],
       dimensionFilter: {
-        filter: {
-          fieldName: 'eventName',
-          inListFilter: {
-            values: EVENT_NAMES
-          }
+        andGroup: {
+          expressions: [
+            {
+              filter: {
+                fieldName: 'eventName',
+                stringFilter: { value: 'button_click', matchType: 'EXACT' }
+              }
+            },
+            {
+              filter: {
+                fieldName: 'customEvent:button_name',
+                inListFilter: { values: BUTTON_NAMES }
+              }
+            }
+          ]
         }
       },
       limit: 10000
@@ -76,6 +90,7 @@ var GA = (function () {
     }
 
     var data = await resp.json();
+    console.log('GA API response (' + startDate + ' to ' + endDate + '):', data);
     return parseReport(data);
   }
 
@@ -88,15 +103,15 @@ var GA = (function () {
     }
 
     data.rows.forEach(function (row) {
-      var eventName = row.dimensionValues[0].value;
+      var buttonName = row.dimensionValues[0].value;
       var source = row.dimensionValues[1].value;
       var eventCount = parseInt(row.metricValues[0].value, 10) || 0;
       var totalUsers = parseInt(row.metricValues[1].value, 10) || 0;
       var newUsers = parseInt(row.metricValues[2].value, 10) || 0;
 
       rows.push({
-        eventName: eventName,
-        label: LABELS[eventName] || eventName,
+        eventName: buttonName,
+        label: LABELS[buttonName] || buttonName,
         source: source,
         sourceLabel: sourceLabel(source),
         eventCount: eventCount,
@@ -127,9 +142,9 @@ var GA = (function () {
       map[k].totalUsers += r.totalUsers;
       map[k].newUsers += r.newUsers;
     });
-    // Return in a stable order matching EVENT_NAMES for event-based aggregation
+    // Return in a stable order matching BUTTON_NAMES for event-based aggregation
     if (keyField === 'eventName') {
-      return EVENT_NAMES.filter(function (n) { return map[n]; })
+      return BUTTON_NAMES.filter(function (n) { return map[n]; })
                         .map(function (n) { return map[n]; });
     }
     return Object.values(map).sort(function (a, b) { return b.eventCount - a.eventCount; });
@@ -138,7 +153,7 @@ var GA = (function () {
   return {
     fetchReport: fetchReport,
     aggregateBy: aggregateBy,
-    EVENT_NAMES: EVENT_NAMES,
+    EVENT_NAMES: BUTTON_NAMES,
     LABELS: LABELS,
     sourceLabel: sourceLabel
   };
