@@ -3,7 +3,7 @@
  * These values are not secret (they're visible in the browser anyway for OAuth),
  * but this keeps them out of the repo.
  */
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=3600');
   res.status(200).json({
