@@ -26,7 +26,8 @@
   <div id="app" class="app hidden">
     <header class="header">
       <div class="header-left">
-        <h1>ICP QR Analytics</h1>
+        <h1>Button clicks — users</h1>
+        <span id="date-label" class="date-subtitle"></span>
       </div>
       <div class="header-right">
         <span id="user-email" class="user-email"></span>
@@ -71,43 +72,46 @@
     </div>
 
     <div id="dashboard" class="dashboard hidden">
+      <!-- Summary cards -->
       <section id="summary-section" class="section">
-        <h2 id="date-label" class="section-title"></h2>
         <div id="summary-cards" class="summary-cards"></div>
       </section>
 
+      <!-- Users per button chart -->
       <section class="section">
-        <h3 class="section-title">Clicks by Button</h3>
-        <div class="chart-container">
-          <canvas id="chart-buttons"></canvas>
+        <div class="section-header">
+          <h3 class="section-title">Users per button</h3>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="toggle-users-only">Total users</button>
+            <button class="toggle-btn" id="toggle-users-new">Total + New</button>
+          </div>
         </div>
-      </section>
-
-      <section class="section">
-        <h3 class="section-title">Users by Button</h3>
         <div class="chart-container">
           <canvas id="chart-users"></canvas>
         </div>
       </section>
 
+      <!-- Sources breakdown -->
       <section class="section">
-        <h3 class="section-title">Traffic Sources</h3>
-        <div class="chart-container chart-container-small">
+        <div class="section-header">
+          <h3 class="section-title">Traffic sources</h3>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="toggle-sources-only">Users by source</button>
+            <button class="toggle-btn" id="toggle-sources-buttons">By source × button</button>
+          </div>
+        </div>
+        <div class="chart-container">
           <canvas id="chart-sources"></canvas>
         </div>
       </section>
 
+      <!-- Comparison (multi-Sunday) -->
       <section id="comparison-section" class="section hidden">
-        <h3 class="section-title">Week-on-Week Comparison</h3>
+        <h3 class="section-title">Week-on-week comparison</h3>
         <div class="chart-container">
           <canvas id="chart-comparison"></canvas>
         </div>
         <div id="comparison-table-wrap" class="table-wrap"></div>
-      </section>
-
-      <section class="section">
-        <h3 class="section-title">Detailed Breakdown</h3>
-        <div id="detail-table-wrap" class="table-wrap"></div>
       </section>
     </div>
   </div>
