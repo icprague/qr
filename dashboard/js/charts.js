@@ -58,6 +58,7 @@ var Charts = (function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { top: 20 } },
         plugins: {
           legend: {
             display: true,
