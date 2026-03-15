@@ -16,9 +16,9 @@
       _propertyId = config.GA_PROPERTY_ID;
       await Auth.init(config.OAUTH_CLIENT_ID, onSignIn, onSignOut);
     } catch (e) {
-      console.error('Config load failed:', e);
+      console.error('Boot failed:', e);
       document.querySelector('.auth-card p').textContent =
-        'Failed to load config. Check Vercel environment variables.';
+        'Error: ' + e.message;
     }
   }
 
