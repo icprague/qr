@@ -96,12 +96,24 @@ var GA = (function () {
       dimensionFilter: DIMENSION_FILTER
     };
 
+    // Per-button totals — single dimension so users are deduplicated per button
+    var perButtonBody = {
+      dateRanges: dateRanges,
+      dimensions: [
+        { name: 'customEvent:button_name' }
+      ],
+      metrics: metrics,
+      dimensionFilter: DIMENSION_FILTER,
+      limit: 10000
+    };
+
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
-      fetchJSON(url, headers, totalsBody)
+      fetchJSON(url, headers, totalsBody),
+      fetchJSON(url, headers, perButtonBody)
     ]);
 
-    return parseReport(results[0], results[1]);
+    return parseReport(results[0], results[1], results[2]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -117,7 +129,7 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData) {
+  function parseReport(detailData, totalsData, perButtonData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
@@ -129,8 +141,29 @@ var GA = (function () {
       totals.newUsers   = parseInt(t[2].value, 10) || 0;
     }
 
+    // Deduplicated per-button totals (single-dimension query)
+    var byButton = [];
+    if (perButtonData && perButtonData.rows) {
+      perButtonData.rows.forEach(function (row) {
+        var buttonName = row.dimensionValues[0].value;
+        byButton.push({
+          key: buttonName,
+          label: LABELS[buttonName] || buttonName,
+          eventCount: parseInt(row.metricValues[0].value, 10) || 0,
+          totalUsers: parseInt(row.metricValues[1].value, 10) || 0,
+          newUsers:   parseInt(row.metricValues[2].value, 10) || 0
+        });
+      });
+      // Sort in stable order matching BUTTON_NAMES
+      byButton = BUTTON_NAMES.filter(function (n) {
+        return byButton.some(function (b) { return b.key === n; });
+      }).map(function (n) {
+        return byButton.find(function (b) { return b.key === n; });
+      });
+    }
+
     if (!detailData.rows || detailData.rows.length === 0) {
-      return { rows: rows, totals: totals };
+      return { rows: rows, totals: totals, byButton: byButton };
     }
 
     detailData.rows.forEach(function (row) {
@@ -151,7 +184,7 @@ var GA = (function () {
       });
     });
 
-    return { rows: rows, totals: totals };
+    return { rows: rows, totals: totals, byButton: byButton };
   }
 
   /**

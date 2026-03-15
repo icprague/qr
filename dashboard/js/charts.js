@@ -127,11 +127,12 @@ var Charts = (function () {
         return {
           label: GA.LABELS[name] || name,
           data: sourceKeys.map(function (sk) {
-            return sourceMap[sk] && sourceMap[sk][name] ? sourceMap[sk][name].eventCount : 0;
+            return sourceMap[sk] && sourceMap[sk][name] ? sourceMap[sk][name].totalUsers : 0;
           }),
           backgroundColor: COLORS[i % COLORS.length],
-          borderRadius: 4,
-          maxBarThickness: 28
+          borderRadius: 2,
+          barPercentage: 0.85,
+          categoryPercentage: 0.9
         };
       });
 
@@ -147,13 +148,21 @@ var Charts = (function () {
               position: 'top',
               align: 'start',
               labels: { boxWidth: 12, font: { size: 11 }, padding: 12 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  return ctx.dataset.label + ': ' + ctx.raw + ' users';
+                }
+              }
             }
           },
           scales: {
             x: { beginAtZero: true, stacked: true, ticks: { precision: 0 }, grid: { color: '#f0f0f5' } },
             y: { stacked: true, grid: { display: false } }
           }
-        }
+        },
+        plugins: [stackedBarLabelPlugin]
       });
     }
   }
@@ -212,6 +221,32 @@ var Charts = (function () {
   }
 
   /** Plugin that draws the value above each bar. */
+  var stackedBarLabelPlugin = {
+    id: 'stackedBarLabels',
+    afterDatasetsDraw: function (chart) {
+      var ctx = chart.ctx;
+      chart.data.datasets.forEach(function (dataset, di) {
+        var meta = chart.getDatasetMeta(di);
+        meta.data.forEach(function (bar, index) {
+          var val = dataset.data[index];
+          if (!val) return;
+          var props = bar.getProps(['x', 'y', 'base', 'height'], true);
+          var segWidth = Math.abs(props.x - props.base);
+          if (segWidth < 20) return; // skip if segment too narrow
+          var cx = (props.x + props.base) / 2;
+          var cy = bar.y;
+          ctx.save();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(val, cx, cy);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
   var barValuePlugin = {
     id: 'barValues',
     afterDatasetsDraw: function (chart) {
