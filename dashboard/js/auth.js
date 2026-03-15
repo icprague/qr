@@ -15,9 +15,26 @@ var Auth = (function () {
     'https://www.googleapis.com/auth/spreadsheets'
   ].join(' ');
 
-  function init(clientId, onSignIn, onSignOut) {
+  function waitForGIS() {
+    return new Promise(function (resolve) {
+      if (typeof google !== 'undefined' && google.accounts) {
+        resolve();
+        return;
+      }
+      var interval = setInterval(function () {
+        if (typeof google !== 'undefined' && google.accounts) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+    });
+  }
+
+  async function init(clientId, onSignIn, onSignOut) {
     _onSignIn = onSignIn;
     _onSignOut = onSignOut;
+
+    await waitForGIS();
 
     _tokenClient = google.accounts.oauth2.initTokenModel({
       client_id: clientId,
