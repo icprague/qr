@@ -139,7 +139,9 @@
     _byEvent = report.byButton.length > 0
       ? report.byButton
       : GA.aggregateBy(report.rows, 'eventName', 'label');
-    _bySource = GA.aggregateBy(report.rows, 'source', 'sourceLabel');
+    _bySource = report.bySource.length > 0
+      ? report.bySource
+      : GA.aggregateBy(report.rows, 'source', 'sourceLabel');
     _allRows = report.rows;
 
     renderSummaryCards(report.totals, _byEvent);
@@ -156,12 +158,14 @@
     var combinedTotals = { eventCount: 0, totalUsers: 0, newUsers: 0 };
     var allRows = [];
     var allByButton = [];
+    var allBySource = [];
     Object.values(results).forEach(function (r) {
       combinedTotals.eventCount += r.totals.eventCount;
       combinedTotals.totalUsers += r.totals.totalUsers;
       combinedTotals.newUsers += r.totals.newUsers;
       allRows = allRows.concat(r.rows);
       if (r.byButton) allByButton = allByButton.concat(r.byButton);
+      if (r.bySource) allBySource = allBySource.concat(r.bySource);
     });
 
     // Aggregate deduplicated per-button data across dates
@@ -177,10 +181,26 @@
     var combinedByButton = GA.EVENT_NAMES.filter(function (n) { return byButtonMap[n]; })
       .map(function (n) { return byButtonMap[n]; });
 
+    // Aggregate deduplicated per-source data across dates
+    var bySourceMap = {};
+    allBySource.forEach(function (s) {
+      if (!bySourceMap[s.key]) {
+        bySourceMap[s.key] = { key: s.key, label: s.label, eventCount: 0, totalUsers: 0, newUsers: 0 };
+      }
+      bySourceMap[s.key].eventCount += s.eventCount;
+      bySourceMap[s.key].totalUsers += s.totalUsers;
+      bySourceMap[s.key].newUsers += s.newUsers;
+    });
+    var combinedBySource = Object.values(bySourceMap).sort(function (a, b) {
+      return b.eventCount - a.eventCount;
+    });
+
     _byEvent = combinedByButton.length > 0
       ? combinedByButton
       : GA.aggregateBy(allRows, 'eventName', 'label');
-    _bySource = GA.aggregateBy(allRows, 'source', 'sourceLabel');
+    _bySource = combinedBySource.length > 0
+      ? combinedBySource
+      : GA.aggregateBy(allRows, 'source', 'sourceLabel');
     _allRows = allRows;
 
     renderSummaryCards(combinedTotals, _byEvent);
