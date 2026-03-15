@@ -26,8 +26,8 @@ var GA = (function () {
     newsletter: 'Newsletter',
     connect_card: 'Connect Card',
     supporting_icp: 'Supporting ICP',
-    giving_usd: 'Stripe',
-    giving_czk: 'Giving (CZK)',
+    giving_usd: 'Card Payment',
+    giving_czk: 'Czech Bank Transfer',
     location: 'Location'
   };
 
@@ -37,72 +37,103 @@ var GA = (function () {
     return src.charAt(0).toUpperCase() + src.slice(1);
   }
 
+  /** Shared filter: eventName=button_click AND button_name in BUTTON_NAMES. */
+  var DIMENSION_FILTER = {
+    andGroup: {
+      expressions: [
+        {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: { value: 'button_click', matchType: 'EXACT' }
+          }
+        },
+        {
+          filter: {
+            fieldName: 'customEvent:button_name',
+            inListFilter: { values: BUTTON_NAMES }
+          }
+        }
+      ]
+    }
+  };
+
   /**
    * Fetch report for a single date range.
+   * Makes two parallel calls:
+   *   1. Detailed rows (button_name × source) for charts/tables
+   *   2. Totals-only query (no dimensions) so GA deduplicates users correctly
    * Returns { rows: [...], totals: { eventCount, totalUsers, newUsers } }
    */
   async function fetchReport(propertyId, startDate, endDate, token) {
     var url = API_BASE + propertyId + ':runReport';
-    var body = {
-      dateRanges: [{ startDate: startDate, endDate: endDate }],
+    var headers = {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    };
+    var dateRanges = [{ startDate: startDate, endDate: endDate }];
+    var metrics = [
+      { name: 'eventCount' },
+      { name: 'totalUsers' },
+      { name: 'newUsers' }
+    ];
+
+    // Detailed breakdown by button × source
+    var detailBody = {
+      dateRanges: dateRanges,
       dimensions: [
         { name: 'customEvent:button_name' },
         { name: 'sessionSource' }
       ],
-      metrics: [
-        { name: 'eventCount' },
-        { name: 'totalUsers' },
-        { name: 'newUsers' }
-      ],
-      dimensionFilter: {
-        andGroup: {
-          expressions: [
-            {
-              filter: {
-                fieldName: 'eventName',
-                stringFilter: { value: 'button_click', matchType: 'EXACT' }
-              }
-            },
-            {
-              filter: {
-                fieldName: 'customEvent:button_name',
-                inListFilter: { values: BUTTON_NAMES }
-              }
-            }
-          ]
-        }
-      },
+      metrics: metrics,
+      dimensionFilter: DIMENSION_FILTER,
       limit: 10000
     };
 
+    // Totals only — no dimensions so users are properly deduplicated
+    var totalsBody = {
+      dateRanges: dateRanges,
+      metrics: metrics,
+      dimensionFilter: DIMENSION_FILTER
+    };
+
+    var results = await Promise.all([
+      fetchJSON(url, headers, detailBody),
+      fetchJSON(url, headers, totalsBody)
+    ]);
+
+    return parseReport(results[0], results[1]);
+  }
+
+  async function fetchJSON(url, headers, body) {
     var resp = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       body: JSON.stringify(body)
     });
-
     if (!resp.ok) {
       var err = await resp.text();
       throw new Error('GA API error (' + resp.status + '): ' + err);
     }
-
-    var data = await resp.json();
-    console.log('GA API response (' + startDate + ' to ' + endDate + '):', data);
-    return parseReport(data);
+    return resp.json();
   }
 
-  function parseReport(data) {
+  function parseReport(detailData, totalsData) {
     var rows = [];
-    var totals = { eventCount: 0, totalUsers: 0, newUsers: 0 };
 
-    if (!data.rows || data.rows.length === 0) {
+    // Deduplicated totals from the dimension-less query
+    var totals = { eventCount: 0, totalUsers: 0, newUsers: 0 };
+    if (totalsData.rows && totalsData.rows.length > 0) {
+      var t = totalsData.rows[0].metricValues;
+      totals.eventCount = parseInt(t[0].value, 10) || 0;
+      totals.totalUsers = parseInt(t[1].value, 10) || 0;
+      totals.newUsers   = parseInt(t[2].value, 10) || 0;
+    }
+
+    if (!detailData.rows || detailData.rows.length === 0) {
       return { rows: rows, totals: totals };
     }
 
-    data.rows.forEach(function (row) {
+    detailData.rows.forEach(function (row) {
       var buttonName = row.dimensionValues[0].value;
       var source = row.dimensionValues[1].value;
       var eventCount = parseInt(row.metricValues[0].value, 10) || 0;
@@ -118,10 +149,6 @@ var GA = (function () {
         totalUsers: totalUsers,
         newUsers: newUsers
       });
-
-      totals.eventCount += eventCount;
-      totals.totalUsers += totalUsers;
-      totals.newUsers += newUsers;
     });
 
     return { rows: rows, totals: totals };

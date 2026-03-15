@@ -113,6 +113,13 @@ body {
 .header h1 {
   font-size: 20px;
   font-weight: 700;
+  line-height: 1.2;
+}
+
+.date-subtitle {
+  font-size: 13px;
+  color: #888;
+  font-weight: 400;
 }
 
 .header-right {
@@ -269,16 +276,57 @@ h2.section-title {
   margin-top: 2px;
 }
 
+/* Section header with toggle */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-header .section-title {
+  margin-bottom: 0;
+}
+
+.toggle-group {
+  display: flex;
+  gap: 0;
+  border: 1px solid #e0e0e8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  background: #fff;
+  border: none;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #666;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border-right: 1px solid #e0e0e8;
+}
+
+.toggle-btn:last-child {
+  border-right: none;
+}
+
+.toggle-btn.active {
+  background: #222a58;
+  color: #fff;
+}
+
+.toggle-btn:hover:not(.active) {
+  background: #f5f5fa;
+}
+
 /* Charts */
 .chart-container {
   position: relative;
   width: 100%;
   max-height: 360px;
-}
-
-.chart-container-small {
-  max-width: 400px;
-  max-height: 300px;
 }
 
 /* Tables */
