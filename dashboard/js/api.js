@@ -169,7 +169,7 @@ var GA = (function () {
     var visitorBySourceBody = {
       dateRanges: dateRanges,
       dimensions: [
-        { name: 'sessionManualAdSource' }
+        { name: 'sessionManualSource' }
       ],
       metrics: metricsBase
     };
