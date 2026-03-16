@@ -163,12 +163,14 @@ var GA = (function () {
       metrics: metricsBase
     };
 
-    // Sessions by source — counts sessions (not users) so each session
-    // keeps its own source, matching the realtime report behavior.
+    // Sessions by source — query both source and medium dimensions,
+    // then aggregate by source in parsing. This captures sessions like
+    // "pew / (none)" that GA4 might reclassify when querying source alone.
     var visitorBySourceBody = {
       dateRanges: dateRanges,
       dimensions: [
-        { name: 'sessionSource' }
+        { name: 'sessionSource' },
+        { name: 'sessionMedium' }
       ],
       metrics: [
         { name: 'sessions' }
@@ -307,17 +309,24 @@ var GA = (function () {
       });
     }
 
-    // Sessions by source (all sessions, not just clickers)
+    // Sessions by source — aggregate source×medium rows by source only
     var visitorsBySource = [];
     if (visitorBySourceData && visitorBySourceData.rows) {
+      var srcMap = {};
       visitorBySourceData.rows.forEach(function (row) {
         var src = row.dimensionValues[0].value;
+        var medium = row.dimensionValues[1].value;
         var sessions = parseInt(row.metricValues[0].value, 10) || 0;
+        console.log('[Sessions] source="' + src + '" medium="' + medium + '" sessions=' + sessions);
+        if (!srcMap[src]) srcMap[src] = 0;
+        srcMap[src] += sessions;
+      });
+      Object.keys(srcMap).forEach(function (src) {
         visitorsBySource.push({
           key: src,
           label: sourceLabel(src),
-          eventCount: sessions,
-          totalUsers: sessions
+          eventCount: srcMap[src],
+          totalUsers: srcMap[src]
         });
       });
       visitorsBySource.sort(function (a, b) { return b.totalUsers - a.totalUsers; });
