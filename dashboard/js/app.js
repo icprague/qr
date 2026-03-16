@@ -241,13 +241,9 @@
       : null;
     var v = visitors || { totalUsers: 0, newUsers: 0, returningUsers: 0 };
 
-    // Derive totals from NVR sums so everything adds up consistently
-    var totalVisited = v.newUsers + v.returningUsers;
-    var totalClicked = (totals.newUsers || 0) + (totals.returningUsers || 0);
-
     var container = document.getElementById('summary-cards');
     var html =
-      cardDual('Total', totalVisited, 'visited', totalClicked, 'clicked') +
+      cardDual('Total', v.totalUsers, 'visited', totals.totalUsers, 'clicked') +
       cardDual('New', v.newUsers, 'visited', totals.newUsers || 0, 'clicked') +
       cardDual('Returning', v.returningUsers, 'visited', totals.returningUsers || 0, 'clicked');
 
