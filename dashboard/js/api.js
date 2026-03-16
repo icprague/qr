@@ -73,7 +73,8 @@ var GA = (function () {
     var dateRanges = [{ startDate: startDate, endDate: endDate }];
     var metrics = [
       { name: 'eventCount' },
-      { name: 'totalUsers' }
+      { name: 'totalUsers' },
+      { name: 'newUsers' }
     ];
 
     // Detailed breakdown by button × source
@@ -145,15 +146,6 @@ var GA = (function () {
       metrics: metrics
     };
 
-    // Visitor new vs returning — ALL visitors (no button_click filter)
-    var visitorNvrBody = {
-      dateRanges: dateRanges,
-      dimensions: [
-        { name: 'newVsReturning' }
-      ],
-      metrics: metrics
-    };
-
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
       fetchJSON(url, headers, totalsBody),
@@ -161,11 +153,10 @@ var GA = (function () {
       fetchJSON(url, headers, perSourceBody),
       fetchJSON(url, headers, perButtonNvrBody),
       fetchJSON(url, headers, nvrTotalsBody),
-      fetchJSON(url, headers, visitorTotalsBody),
-      fetchJSON(url, headers, visitorNvrBody)
+      fetchJSON(url, headers, visitorTotalsBody)
     ]);
 
-    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7]);
+    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5], results[6]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -181,31 +172,23 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData, visitorTotalsData, visitorNvrData) {
+  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData, visitorTotalsData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
+    // metrics: [eventCount, totalUsers, newUsers]
     var totals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
     if (totalsData.rows && totalsData.rows.length > 0) {
       var t = totalsData.rows[0].metricValues;
       totals.eventCount = parseInt(t[0].value, 10) || 0;
       totals.totalUsers = parseInt(t[1].value, 10) || 0;
+      totals.newUsers = parseInt(t[2].value, 10) || 0;
+      totals.returningUsers = totals.totalUsers - totals.newUsers;
     }
 
-    // Deduplicated new vs returning totals (single newVsReturning dimension)
+    // Keep NVR dimension data for per-button breakdown (used by charts)
     if (nvrTotalsData && nvrTotalsData.rows) {
       console.log('[NVR totals] rows:', JSON.stringify(nvrTotalsData.rows));
-      nvrTotalsData.rows.forEach(function (row) {
-        var nvrType = row.dimensionValues[0].value;
-        var users = parseInt(row.metricValues[1].value, 10) || 0;
-        console.log('[NVR totals] type="' + nvrType + '" users=' + users);
-        if (nvrType === 'new') {
-          totals.newUsers = users;
-        } else if (nvrType === 'returning') {
-          totals.returningUsers = users;
-        }
-        // ignore "(not set)" or other values
-      });
     }
 
     // Deduplicated per-button totals (single-dimension query)
@@ -269,20 +252,13 @@ var GA = (function () {
     }
 
     // Visitor totals (all users, not just button clickers)
+    // Uses newUsers metric directly — matches GA4 Exploration exactly
     var visitors = { totalUsers: 0, newUsers: 0, returningUsers: 0 };
     if (visitorTotalsData && visitorTotalsData.rows && visitorTotalsData.rows.length > 0) {
-      visitors.totalUsers = parseInt(visitorTotalsData.rows[0].metricValues[1].value, 10) || 0;
-    }
-    if (visitorNvrData && visitorNvrData.rows) {
-      visitorNvrData.rows.forEach(function (row) {
-        var nvrType = row.dimensionValues[0].value;
-        var users = parseInt(row.metricValues[1].value, 10) || 0;
-        if (nvrType === 'new') {
-          visitors.newUsers = users;
-        } else if (nvrType === 'returning') {
-          visitors.returningUsers = users;
-        }
-      });
+      var vt = visitorTotalsData.rows[0].metricValues;
+      visitors.totalUsers = parseInt(vt[1].value, 10) || 0;
+      visitors.newUsers = parseInt(vt[2].value, 10) || 0;
+      visitors.returningUsers = visitors.totalUsers - visitors.newUsers;
     }
 
     if (!detailData.rows || detailData.rows.length === 0) {
