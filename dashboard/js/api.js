@@ -139,16 +139,33 @@ var GA = (function () {
       dimensionFilter: DIMENSION_FILTER
     };
 
+    // Visitor totals — ALL users who visited (no button_click filter)
+    var visitorTotalsBody = {
+      dateRanges: dateRanges,
+      metrics: metrics
+    };
+
+    // Visitor new vs returning — ALL visitors (no button_click filter)
+    var visitorNvrBody = {
+      dateRanges: dateRanges,
+      dimensions: [
+        { name: 'newVsReturning' }
+      ],
+      metrics: metrics
+    };
+
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
       fetchJSON(url, headers, totalsBody),
       fetchJSON(url, headers, perButtonBody),
       fetchJSON(url, headers, perSourceBody),
       fetchJSON(url, headers, perButtonNvrBody),
-      fetchJSON(url, headers, nvrTotalsBody)
+      fetchJSON(url, headers, nvrTotalsBody),
+      fetchJSON(url, headers, visitorTotalsBody),
+      fetchJSON(url, headers, visitorNvrBody)
     ]);
 
-    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5]);
+    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -164,7 +181,7 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData) {
+  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData, visitorTotalsData, visitorNvrData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
@@ -251,8 +268,25 @@ var GA = (function () {
       bySource.sort(function (a, b) { return b.eventCount - a.eventCount; });
     }
 
+    // Visitor totals (all users, not just button clickers)
+    var visitors = { totalUsers: 0, newUsers: 0, returningUsers: 0 };
+    if (visitorTotalsData && visitorTotalsData.rows && visitorTotalsData.rows.length > 0) {
+      visitors.totalUsers = parseInt(visitorTotalsData.rows[0].metricValues[1].value, 10) || 0;
+    }
+    if (visitorNvrData && visitorNvrData.rows) {
+      visitorNvrData.rows.forEach(function (row) {
+        var nvrType = row.dimensionValues[0].value;
+        var users = parseInt(row.metricValues[1].value, 10) || 0;
+        if (nvrType === 'new') {
+          visitors.newUsers = users;
+        } else if (nvrType === 'returning') {
+          visitors.returningUsers = users;
+        }
+      });
+    }
+
     if (!detailData.rows || detailData.rows.length === 0) {
-      return { rows: rows, totals: totals, byButton: byButton, bySource: bySource };
+      return { rows: rows, totals: totals, byButton: byButton, bySource: bySource, visitors: visitors };
     }
 
     detailData.rows.forEach(function (row) {
@@ -271,7 +305,7 @@ var GA = (function () {
       });
     });
 
-    return { rows: rows, totals: totals, byButton: byButton, bySource: bySource };
+    return { rows: rows, totals: totals, byButton: byButton, bySource: bySource, visitors: visitors };
   }
 
   /**
