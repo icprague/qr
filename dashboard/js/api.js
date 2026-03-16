@@ -73,7 +73,8 @@ var GA = (function () {
     var dateRanges = [{ startDate: startDate, endDate: endDate }];
     var metrics = [
       { name: 'eventCount' },
-      { name: 'totalUsers' }
+      { name: 'totalUsers' },
+      { name: 'newUsers' }
     ];
 
     // Detailed breakdown by button × source
@@ -145,7 +146,7 @@ var GA = (function () {
       metrics: metrics
     };
 
-    // Visitor new vs returning — ALL visitors (no button_click filter)
+    // Visitor NVR — returning visitors (no button_click filter)
     var visitorNvrBody = {
       dateRanges: dateRanges,
       dimensions: [
@@ -185,26 +186,23 @@ var GA = (function () {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
+    // metrics: [eventCount, totalUsers, newUsers]
     var totals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
     if (totalsData.rows && totalsData.rows.length > 0) {
       var t = totalsData.rows[0].metricValues;
       totals.eventCount = parseInt(t[0].value, 10) || 0;
       totals.totalUsers = parseInt(t[1].value, 10) || 0;
+      totals.newUsers = parseInt(t[2].value, 10) || 0;
     }
 
-    // Deduplicated new vs returning totals (single newVsReturning dimension)
+    // Returning users from NVR dimension (independent of newUsers metric)
     if (nvrTotalsData && nvrTotalsData.rows) {
-      console.log('[NVR totals] rows:', JSON.stringify(nvrTotalsData.rows));
       nvrTotalsData.rows.forEach(function (row) {
         var nvrType = row.dimensionValues[0].value;
         var users = parseInt(row.metricValues[1].value, 10) || 0;
-        console.log('[NVR totals] type="' + nvrType + '" users=' + users);
-        if (nvrType === 'new') {
-          totals.newUsers = users;
-        } else if (nvrType === 'returning') {
+        if (nvrType === 'returning') {
           totals.returningUsers = users;
         }
-        // ignore "(not set)" or other values
       });
     }
 
@@ -269,17 +267,18 @@ var GA = (function () {
     }
 
     // Visitor totals (all users, not just button clickers)
+    // newUsers from metric, returningUsers from NVR dimension — each sourced independently
     var visitors = { totalUsers: 0, newUsers: 0, returningUsers: 0 };
     if (visitorTotalsData && visitorTotalsData.rows && visitorTotalsData.rows.length > 0) {
-      visitors.totalUsers = parseInt(visitorTotalsData.rows[0].metricValues[1].value, 10) || 0;
+      var vt = visitorTotalsData.rows[0].metricValues;
+      visitors.totalUsers = parseInt(vt[1].value, 10) || 0;
+      visitors.newUsers = parseInt(vt[2].value, 10) || 0;
     }
     if (visitorNvrData && visitorNvrData.rows) {
       visitorNvrData.rows.forEach(function (row) {
         var nvrType = row.dimensionValues[0].value;
         var users = parseInt(row.metricValues[1].value, 10) || 0;
-        if (nvrType === 'new') {
-          visitors.newUsers = users;
-        } else if (nvrType === 'returning') {
+        if (nvrType === 'returning') {
           visitors.returningUsers = users;
         }
       });
