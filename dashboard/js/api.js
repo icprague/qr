@@ -163,11 +163,13 @@ var GA = (function () {
       metrics: metricsBase
     };
 
-    // Visitor by source — ALL visitors broken down by source (no button_click filter)
+    // Visitor by source — ALL visitors by utm_source (no button_click filter)
+    // Uses sessionManualAdSource to read raw utm_source param directly,
+    // bypassing GA4's attribution model which loses sources for many sessions.
     var visitorBySourceBody = {
       dateRanges: dateRanges,
       dimensions: [
-        { name: 'sessionSource' }
+        { name: 'sessionManualAdSource' }
       ],
       metrics: metricsBase
     };
