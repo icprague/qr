@@ -163,6 +163,15 @@ var GA = (function () {
       metrics: metricsBase
     };
 
+    // Visitor by source — ALL visitors broken down by source (no button_click filter)
+    var visitorBySourceBody = {
+      dateRanges: dateRanges,
+      dimensions: [
+        { name: 'sessionSource' }
+      ],
+      metrics: metricsBase
+    };
+
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
       fetchJSON(url, headers, totalsBody),
@@ -171,10 +180,11 @@ var GA = (function () {
       fetchJSON(url, headers, perButtonNvrBody),
       fetchJSON(url, headers, nvrTotalsBody),
       fetchJSON(url, headers, visitorTotalsBody),
-      fetchJSON(url, headers, visitorNvrBody)
+      fetchJSON(url, headers, visitorNvrBody),
+      fetchJSON(url, headers, visitorBySourceBody)
     ]);
 
-    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7]);
+    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7], results[8]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -190,7 +200,7 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData, visitorTotalsData, visitorNvrData) {
+  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData, visitorTotalsData, visitorNvrData, visitorBySourceData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
@@ -294,8 +304,23 @@ var GA = (function () {
       });
     }
 
+    // Visitors by source (all visitors, not just clickers)
+    var visitorsBySource = [];
+    if (visitorBySourceData && visitorBySourceData.rows) {
+      visitorBySourceData.rows.forEach(function (row) {
+        var src = row.dimensionValues[0].value;
+        visitorsBySource.push({
+          key: src,
+          label: sourceLabel(src),
+          eventCount: parseInt(row.metricValues[0].value, 10) || 0,
+          totalUsers: parseInt(row.metricValues[1].value, 10) || 0
+        });
+      });
+      visitorsBySource.sort(function (a, b) { return b.totalUsers - a.totalUsers; });
+    }
+
     if (!detailData.rows || detailData.rows.length === 0) {
-      return { rows: rows, totals: totals, byButton: byButton, bySource: bySource, visitors: visitors };
+      return { rows: rows, totals: totals, byButton: byButton, bySource: bySource, visitors: visitors, visitorsBySource: visitorsBySource };
     }
 
     detailData.rows.forEach(function (row) {
@@ -314,7 +339,7 @@ var GA = (function () {
       });
     });
 
-    return { rows: rows, totals: totals, byButton: byButton, bySource: bySource, visitors: visitors };
+    return { rows: rows, totals: totals, byButton: byButton, bySource: bySource, visitors: visitors, visitorsBySource: visitorsBySource };
   }
 
   /**
