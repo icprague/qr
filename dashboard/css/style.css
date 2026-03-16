@@ -276,6 +276,19 @@ h2.section-title {
   margin-top: 2px;
 }
 
+.summary-card .value-secondary {
+  font-size: 18px;
+  font-weight: 700;
+  color: #7c6cbc;
+  margin-top: 6px;
+}
+
+.summary-card .value-secondary span {
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
+}
+
 /* Section header with toggle */
 .section-header {
   display: flex;

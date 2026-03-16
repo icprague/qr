@@ -144,7 +144,7 @@
       : GA.aggregateBy(report.rows, 'source', 'sourceLabel');
     _allRows = report.rows;
 
-    renderSummaryCards(report.totals, _byEvent);
+    renderSummaryCards(report.totals, _byEvent, report.visitors);
     Charts.renderUsersChart(_byEvent, _showNvr);
     Charts.renderSourcesChart(_bySource, _allRows, !_showSourceButtons);
   }
@@ -156,6 +156,7 @@
     document.getElementById('date-label').textContent = _currentDateConfig.label;
 
     var combinedTotals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
+    var combinedVisitors = { totalUsers: 0, newUsers: 0, returningUsers: 0 };
     var allRows = [];
     var allByButton = [];
     var allBySource = [];
@@ -164,6 +165,11 @@
       combinedTotals.totalUsers += r.totals.totalUsers;
       combinedTotals.newUsers += (r.totals.newUsers || 0);
       combinedTotals.returningUsers += (r.totals.returningUsers || 0);
+      if (r.visitors) {
+        combinedVisitors.totalUsers += r.visitors.totalUsers;
+        combinedVisitors.newUsers += r.visitors.newUsers;
+        combinedVisitors.returningUsers += r.visitors.returningUsers;
+      }
       allRows = allRows.concat(r.rows);
       if (r.byButton) allByButton = allByButton.concat(r.byButton);
       if (r.bySource) allBySource = allBySource.concat(r.bySource);
@@ -204,7 +210,7 @@
       : GA.aggregateBy(allRows, 'source', 'sourceLabel');
     _allRows = allRows;
 
-    renderSummaryCards(combinedTotals, _byEvent);
+    renderSummaryCards(combinedTotals, _byEvent, combinedVisitors);
     Charts.renderUsersChart(_byEvent, _showNvr);
     Charts.renderSourcesChart(_bySource, _allRows, !_showSourceButtons);
 
@@ -229,16 +235,18 @@
   }
 
   // ── Summary cards ──────────────────────────────────────────────────
-  function renderSummaryCards(totals, byEvent) {
+  function renderSummaryCards(totals, byEvent, visitors) {
     var topButton = byEvent.length > 0
       ? byEvent.reduce(function (a, b) { return a.totalUsers > b.totalUsers ? a : b; })
       : null;
+    var v = visitors || { totalUsers: 0, newUsers: 0, returningUsers: 0 };
 
     var container = document.getElementById('summary-cards');
-    var html = card('Total events', totals.eventCount, 'all buttons') +
-      card('Unique users', totals.totalUsers, 'total sessions') +
-      card('New visitors', totals.newUsers || 0, 'first visit') +
-      card('Returning', totals.returningUsers || 0, 'been before');
+    var html =
+      card('Scanned', v.totalUsers, 'visited page') +
+      card('Clicked', totals.totalUsers, 'clicked a button') +
+      cardDual('New visitors', v.newUsers, 'visited', totals.newUsers || 0, 'clicked') +
+      cardDual('Returning', v.returningUsers, 'visited', totals.returningUsers || 0, 'clicked');
 
     if (topButton) {
       html += card('Top button', topButton.totalUsers, topButton.label);
@@ -252,6 +260,15 @@
       '<div class="label">' + label + '</div>' +
       '<div class="value">' + value.toLocaleString() + '</div>' +
       (sub ? '<div class="sub">' + sub + '</div>' : '') +
+      '</div>';
+  }
+
+  function cardDual(label, primary, primarySub, secondary, secondarySub) {
+    return '<div class="summary-card">' +
+      '<div class="label">' + label + '</div>' +
+      '<div class="value">' + primary.toLocaleString() + '</div>' +
+      '<div class="sub">' + primarySub + '</div>' +
+      '<div class="value-secondary">' + secondary.toLocaleString() + ' <span>' + secondarySub + '</span></div>' +
       '</div>';
   }
 
