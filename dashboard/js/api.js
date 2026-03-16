@@ -163,15 +163,16 @@ var GA = (function () {
       metrics: metricsBase
     };
 
-    // Visitor by source — ALL visitors by utm_source (no button_click filter)
-    // Uses sessionManualAdSource to read raw utm_source param directly,
-    // bypassing GA4's attribution model which loses sources for many sessions.
+    // Sessions by source — counts sessions (not users) so each session
+    // keeps its own source, matching the realtime report behavior.
     var visitorBySourceBody = {
       dateRanges: dateRanges,
       dimensions: [
-        { name: 'sessionManualSource' }
+        { name: 'sessionSource' }
       ],
-      metrics: metricsBase
+      metrics: [
+        { name: 'sessions' }
+      ]
     };
 
     var results = await Promise.all([
@@ -306,18 +307,17 @@ var GA = (function () {
       });
     }
 
-    // Visitors by source (all visitors, not just clickers)
-    // Filter out "(not set)" — those are non-QR visits (dashboard, bots, bookmarks)
+    // Sessions by source (all sessions, not just clickers)
     var visitorsBySource = [];
     if (visitorBySourceData && visitorBySourceData.rows) {
       visitorBySourceData.rows.forEach(function (row) {
         var src = row.dimensionValues[0].value;
-        if (!src || src === '(not set)') return;
+        var sessions = parseInt(row.metricValues[0].value, 10) || 0;
         visitorsBySource.push({
           key: src,
           label: sourceLabel(src),
-          eventCount: parseInt(row.metricValues[0].value, 10) || 0,
-          totalUsers: parseInt(row.metricValues[1].value, 10) || 0
+          eventCount: sessions,
+          totalUsers: sessions
         });
       });
       visitorsBySource.sort(function (a, b) { return b.totalUsers - a.totalUsers; });
