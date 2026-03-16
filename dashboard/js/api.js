@@ -163,15 +163,16 @@ var GA = (function () {
       metrics: metricsBase
     };
 
-    // Sessions by source — counts sessions (not users) so each session
-    // keeps its own source, matching the realtime report behavior.
+    // Sessions by source — use firstUserSource which preserves the source
+    // from the user's first visit (when they scanned the QR code).
+    // sessionSource loses the source for sessions with medium "(none)".
     var visitorBySourceBody = {
       dateRanges: dateRanges,
       dimensions: [
-        { name: 'sessionSource' }
+        { name: 'firstUserSource' }
       ],
       metrics: [
-        { name: 'sessions' }
+        { name: 'totalUsers' }
       ]
     };
 
