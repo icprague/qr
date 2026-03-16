@@ -71,7 +71,14 @@ var GA = (function () {
       'Content-Type': 'application/json'
     };
     var dateRanges = [{ startDate: startDate, endDate: endDate }];
-    var metrics = [
+
+    // newUsers metric only works for unfiltered queries (counts first_visit events).
+    // With button_click filter it returns 0, so use separate metric arrays.
+    var metricsBase = [
+      { name: 'eventCount' },
+      { name: 'totalUsers' }
+    ];
+    var metricsWithNew = [
       { name: 'eventCount' },
       { name: 'totalUsers' },
       { name: 'newUsers' }
@@ -84,7 +91,7 @@ var GA = (function () {
         { name: 'customEvent:button_name' },
         { name: 'sessionSource' }
       ],
-      metrics: metrics,
+      metrics: metricsBase,
       dimensionFilter: DIMENSION_FILTER,
       limit: 10000
     };
@@ -92,7 +99,7 @@ var GA = (function () {
     // Totals only — no dimensions so users are properly deduplicated
     var totalsBody = {
       dateRanges: dateRanges,
-      metrics: metrics,
+      metrics: metricsBase,
       dimensionFilter: DIMENSION_FILTER
     };
 
@@ -102,7 +109,7 @@ var GA = (function () {
       dimensions: [
         { name: 'customEvent:button_name' }
       ],
-      metrics: metrics,
+      metrics: metricsBase,
       dimensionFilter: DIMENSION_FILTER,
       limit: 10000
     };
@@ -113,7 +120,7 @@ var GA = (function () {
       dimensions: [
         { name: 'sessionSource' }
       ],
-      metrics: metrics,
+      metrics: metricsBase,
       dimensionFilter: DIMENSION_FILTER,
       limit: 10000
     };
@@ -125,7 +132,7 @@ var GA = (function () {
         { name: 'customEvent:button_name' },
         { name: 'newVsReturning' }
       ],
-      metrics: metrics,
+      metrics: metricsBase,
       dimensionFilter: DIMENSION_FILTER,
       limit: 10000
     };
@@ -136,14 +143,15 @@ var GA = (function () {
       dimensions: [
         { name: 'newVsReturning' }
       ],
-      metrics: metrics,
+      metrics: metricsBase,
       dimensionFilter: DIMENSION_FILTER
     };
 
     // Visitor totals — ALL users who visited (no button_click filter)
+    // Uses metricsWithNew since newUsers metric works here
     var visitorTotalsBody = {
       dateRanges: dateRanges,
-      metrics: metrics
+      metrics: metricsWithNew
     };
 
     // Visitor NVR — returning visitors (no button_click filter)
@@ -152,7 +160,7 @@ var GA = (function () {
       dimensions: [
         { name: 'newVsReturning' }
       ],
-      metrics: metrics
+      metrics: metricsBase
     };
 
     var results = await Promise.all([
@@ -186,21 +194,23 @@ var GA = (function () {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
-    // metrics: [eventCount, totalUsers, newUsers]
+    // metrics: [eventCount, totalUsers]
     var totals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
     if (totalsData.rows && totalsData.rows.length > 0) {
       var t = totalsData.rows[0].metricValues;
       totals.eventCount = parseInt(t[0].value, 10) || 0;
       totals.totalUsers = parseInt(t[1].value, 10) || 0;
-      totals.newUsers = parseInt(t[2].value, 10) || 0;
     }
 
-    // Returning users from NVR dimension (independent of newUsers metric)
+    // New and returning clicker counts from NVR dimension
+    // (newUsers metric doesn't work with button_click filter)
     if (nvrTotalsData && nvrTotalsData.rows) {
       nvrTotalsData.rows.forEach(function (row) {
         var nvrType = row.dimensionValues[0].value;
         var users = parseInt(row.metricValues[1].value, 10) || 0;
-        if (nvrType === 'returning') {
+        if (nvrType === 'new') {
+          totals.newUsers = users;
+        } else if (nvrType === 'returning') {
           totals.returningUsers = users;
         }
       });
