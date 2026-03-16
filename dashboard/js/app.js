@@ -12,11 +12,12 @@
   // Cached aggregations for toggle re-renders
   var _byEvent = null;
   var _bySource = null;
+  var _visitorsBySource = null;
   var _allRows = null;
 
   // Toggle state
   var _showNvr = false;
-  var _showSourceButtons = false;
+  var _sourcesView = 'sessions'; // 'sessions' | 'users' | 'buttons'
 
   // ── Bootstrap ──────────────────────────────────────────────────────
   async function boot() {
@@ -142,11 +143,12 @@
     _bySource = report.bySource.length > 0
       ? report.bySource
       : GA.aggregateBy(report.rows, 'source', 'sourceLabel');
+    _visitorsBySource = report.visitorsBySource || [];
     _allRows = report.rows;
 
     renderSummaryCards(report.totals, _byEvent, report.visitors);
     Charts.renderUsersChart(_byEvent, _showNvr);
-    Charts.renderSourcesChart(_bySource, _allRows, !_showSourceButtons);
+    renderSourcesView();
   }
 
   // ── Rendering: comparison ──────────────────────────────────────────
@@ -160,6 +162,7 @@
     var allRows = [];
     var allByButton = [];
     var allBySource = [];
+    var allVisitorsBySource = [];
     Object.values(results).forEach(function (r) {
       combinedTotals.eventCount += r.totals.eventCount;
       combinedTotals.totalUsers += r.totals.totalUsers;
@@ -173,6 +176,7 @@
       allRows = allRows.concat(r.rows);
       if (r.byButton) allByButton = allByButton.concat(r.byButton);
       if (r.bySource) allBySource = allBySource.concat(r.bySource);
+      if (r.visitorsBySource) allVisitorsBySource = allVisitorsBySource.concat(r.visitorsBySource);
     });
 
     // Aggregate deduplicated per-button data across dates
@@ -202,17 +206,31 @@
       return b.eventCount - a.eventCount;
     });
 
+    // Aggregate visitor-by-source across dates
+    var visBySourceMap = {};
+    allVisitorsBySource.forEach(function (s) {
+      if (!visBySourceMap[s.key]) {
+        visBySourceMap[s.key] = { key: s.key, label: s.label, eventCount: 0, totalUsers: 0 };
+      }
+      visBySourceMap[s.key].eventCount += s.eventCount;
+      visBySourceMap[s.key].totalUsers += s.totalUsers;
+    });
+    var combinedVisitorsBySource = Object.values(visBySourceMap).sort(function (a, b) {
+      return b.totalUsers - a.totalUsers;
+    });
+
     _byEvent = combinedByButton.length > 0
       ? combinedByButton
       : GA.aggregateBy(allRows, 'eventName', 'label');
     _bySource = combinedBySource.length > 0
       ? combinedBySource
       : GA.aggregateBy(allRows, 'source', 'sourceLabel');
+    _visitorsBySource = combinedVisitorsBySource;
     _allRows = allRows;
 
     renderSummaryCards(combinedTotals, _byEvent, combinedVisitors);
     Charts.renderUsersChart(_byEvent, _showNvr);
-    Charts.renderSourcesChart(_bySource, _allRows, !_showSourceButtons);
+    renderSourcesView();
 
     // Per-date comparison chart
     var dataPerDate = {};
@@ -290,6 +308,16 @@
     document.getElementById('comparison-table-wrap').innerHTML = html;
   }
 
+  function renderSourcesView() {
+    if (_sourcesView === 'sessions') {
+      Charts.renderSourcesChart(_visitorsBySource || [], _allRows, true);
+    } else if (_sourcesView === 'users') {
+      Charts.renderSourcesChart(_bySource, _allRows, true);
+    } else {
+      Charts.renderSourcesChart(_bySource, _allRows, false);
+    }
+  }
+
   // ── UI helpers ─────────────────────────────────────────────────────
   function showLoading(show) {
     document.getElementById('loading').classList.toggle('hidden', !show);
@@ -333,18 +361,30 @@
       if (_byEvent) Charts.renderUsersChart(_byEvent, true);
     });
 
-    // Sources chart toggle
+    // Sources chart toggle (3 buttons)
+    var btnSourcesSessions = document.getElementById('toggle-sources-sessions');
     var btnSourcesOnly = document.getElementById('toggle-sources-only');
     var btnSourcesButtons = document.getElementById('toggle-sources-buttons');
+    var sourceBtns = [btnSourcesSessions, btnSourcesOnly, btnSourcesButtons];
+
+    function setSourcesToggle(activeBtn) {
+      sourceBtns.forEach(function (b) { b.classList.toggle('active', b === activeBtn); });
+    }
+
+    btnSourcesSessions.addEventListener('click', function () {
+      _sourcesView = 'sessions';
+      setSourcesToggle(btnSourcesSessions);
+      renderSourcesView();
+    });
     btnSourcesOnly.addEventListener('click', function () {
-      _showSourceButtons = false;
-      setToggleActive(btnSourcesOnly, btnSourcesButtons);
-      if (_bySource) Charts.renderSourcesChart(_bySource, _allRows, true);
+      _sourcesView = 'users';
+      setSourcesToggle(btnSourcesOnly);
+      renderSourcesView();
     });
     btnSourcesButtons.addEventListener('click', function () {
-      _showSourceButtons = true;
-      setToggleActive(btnSourcesButtons, btnSourcesOnly);
-      if (_bySource) Charts.renderSourcesChart(_bySource, _allRows, false);
+      _sourcesView = 'buttons';
+      setSourcesToggle(btnSourcesButtons);
+      renderSourcesView();
     });
 
     // Exports
