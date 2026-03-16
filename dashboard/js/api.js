@@ -307,10 +307,12 @@ var GA = (function () {
     }
 
     // Visitors by source (all visitors, not just clickers)
+    // Filter out "(not set)" — those are non-QR visits (dashboard, bots, bookmarks)
     var visitorsBySource = [];
     if (visitorBySourceData && visitorBySourceData.rows) {
       visitorBySourceData.rows.forEach(function (row) {
         var src = row.dimensionValues[0].value;
+        if (!src || src === '(not set)') return;
         visitorsBySource.push({
           key: src,
           label: sourceLabel(src),
