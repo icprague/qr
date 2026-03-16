@@ -146,6 +146,15 @@ var GA = (function () {
       metrics: metrics
     };
 
+    // Visitor NVR — returning visitors (no button_click filter)
+    var visitorNvrBody = {
+      dateRanges: dateRanges,
+      dimensions: [
+        { name: 'newVsReturning' }
+      ],
+      metrics: metrics
+    };
+
     var results = await Promise.all([
       fetchJSON(url, headers, detailBody),
       fetchJSON(url, headers, totalsBody),
@@ -153,10 +162,11 @@ var GA = (function () {
       fetchJSON(url, headers, perSourceBody),
       fetchJSON(url, headers, perButtonNvrBody),
       fetchJSON(url, headers, nvrTotalsBody),
-      fetchJSON(url, headers, visitorTotalsBody)
+      fetchJSON(url, headers, visitorTotalsBody),
+      fetchJSON(url, headers, visitorNvrBody)
     ]);
 
-    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5], results[6]);
+    return parseReport(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7]);
   }
 
   async function fetchJSON(url, headers, body) {
@@ -172,7 +182,7 @@ var GA = (function () {
     return resp.json();
   }
 
-  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData, visitorTotalsData) {
+  function parseReport(detailData, totalsData, perButtonData, perSourceData, perButtonNvrData, nvrTotalsData, visitorTotalsData, visitorNvrData) {
     var rows = [];
 
     // Deduplicated totals from the dimension-less query
@@ -183,12 +193,17 @@ var GA = (function () {
       totals.eventCount = parseInt(t[0].value, 10) || 0;
       totals.totalUsers = parseInt(t[1].value, 10) || 0;
       totals.newUsers = parseInt(t[2].value, 10) || 0;
-      totals.returningUsers = totals.totalUsers - totals.newUsers;
     }
 
-    // Keep NVR dimension data for per-button breakdown (used by charts)
+    // Returning users from NVR dimension (independent of newUsers metric)
     if (nvrTotalsData && nvrTotalsData.rows) {
-      console.log('[NVR totals] rows:', JSON.stringify(nvrTotalsData.rows));
+      nvrTotalsData.rows.forEach(function (row) {
+        var nvrType = row.dimensionValues[0].value;
+        var users = parseInt(row.metricValues[1].value, 10) || 0;
+        if (nvrType === 'returning') {
+          totals.returningUsers = users;
+        }
+      });
     }
 
     // Deduplicated per-button totals (single-dimension query)
@@ -252,13 +267,21 @@ var GA = (function () {
     }
 
     // Visitor totals (all users, not just button clickers)
-    // Uses newUsers metric directly — matches GA4 Exploration exactly
+    // newUsers from metric, returningUsers from NVR dimension — each sourced independently
     var visitors = { totalUsers: 0, newUsers: 0, returningUsers: 0 };
     if (visitorTotalsData && visitorTotalsData.rows && visitorTotalsData.rows.length > 0) {
       var vt = visitorTotalsData.rows[0].metricValues;
       visitors.totalUsers = parseInt(vt[1].value, 10) || 0;
       visitors.newUsers = parseInt(vt[2].value, 10) || 0;
-      visitors.returningUsers = visitors.totalUsers - visitors.newUsers;
+    }
+    if (visitorNvrData && visitorNvrData.rows) {
+      visitorNvrData.rows.forEach(function (row) {
+        var nvrType = row.dimensionValues[0].value;
+        var users = parseInt(row.metricValues[1].value, 10) || 0;
+        if (nvrType === 'returning') {
+          visitors.returningUsers = users;
+        }
+      });
     }
 
     if (!detailData.rows || detailData.rows.length === 0) {
