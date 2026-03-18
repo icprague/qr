@@ -1,4 +1,4 @@
-name: "Send Announcements to Moderator"
+name: "Send Announcements to Moderator (Saturday)"
 
 on:
   # Schedule disabled until setup is complete. Uncomment to enable:
@@ -7,9 +7,6 @@ on:
   #   # Prague is UTC+1 (CET) or UTC+2 (CEST during summer)
   #   # 8 AM CET = 7:00 UTC | 8 AM CEST = 6:00 UTC
   #   - cron: '0 6 * * 6'
-  #   # Every Tuesday at 9:00 AM Prague time
-  #   # 9 AM CET = 8:00 UTC | 9 AM CEST = 7:00 UTC
-  #   - cron: '0 7 * * 2'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
