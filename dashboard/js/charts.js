@@ -29,9 +29,26 @@ var Charts = (function () {
    * showNvr = false → single "Total users" bar
    * showNvr = true  → grouped "New users" + "Returning users"
    */
-  function renderUsersChart(byEvent, showNvr) {
+  function renderUsersChart(byEvent, showNvr, averages) {
     destroy('chart-users');
     var ctx = document.getElementById('chart-users').getContext('2d');
+
+    // Build percentage change arrays for bar labels
+    var pctData = null;
+    if (averages && averages.byButton) {
+      pctData = byEvent.map(function (e) {
+        var avg = averages.byButton[e.key];
+        if (!avg) return { total: null, newU: null, ret: null };
+        var totalAvg = avg.totalUsers || 0;
+        var newAvg = avg.newUsers || 0;
+        var retAvg = avg.returningUsers || 0;
+        return {
+          total: totalAvg ? Math.round(((e.totalUsers - totalAvg) / totalAvg) * 100) : null,
+          newU: newAvg ? Math.round((((e.newUsers || 0) - newAvg) / newAvg) * 100) : null,
+          ret: retAvg ? Math.round((((e.returningUsers || 0) - retAvg) / retAvg) * 100) : null
+        };
+      });
+    }
 
     var datasets;
     if (showNvr) {
@@ -58,6 +75,51 @@ var Charts = (function () {
       }];
     }
 
+    // Custom plugin for bar values with percentage change
+    var barValueWithPctPlugin = {
+      id: 'barValuesWithPct',
+      afterDatasetsDraw: function (chart) {
+        var chartCtx = chart.ctx;
+        chart.data.datasets.forEach(function (dataset, di) {
+          var meta = chart.getDatasetMeta(di);
+          meta.data.forEach(function (bar, index) {
+            var val = dataset.data[index];
+            if (val === 0) return;
+            chartCtx.save();
+            chartCtx.font = '500 12px Inter, sans-serif';
+            chartCtx.textAlign = 'center';
+            chartCtx.textBaseline = 'bottom';
+
+            var label = '' + val;
+            var pct = null;
+            if (pctData && pctData[index]) {
+              if (!showNvr) {
+                pct = pctData[index].total;
+              } else if (di === 0) {
+                pct = pctData[index].newU;
+              } else {
+                pct = pctData[index].ret;
+              }
+            }
+
+            // Draw value
+            chartCtx.fillStyle = '#666';
+            chartCtx.fillText(val, bar.x, bar.y - (pct !== null ? 16 : 4));
+
+            // Draw percentage below value
+            if (pct !== null) {
+              var sign = pct >= 0 ? '+' : '';
+              chartCtx.fillStyle = pct >= 0 ? '#1a8a4a' : '#c53030';
+              chartCtx.font = '600 11px Inter, sans-serif';
+              chartCtx.fillText(sign + pct + '%', bar.x, bar.y - 3);
+            }
+
+            chartCtx.restore();
+          });
+        });
+      }
+    };
+
     _charts['chart-users'] = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -67,7 +129,7 @@ var Charts = (function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 20 } },
+        layout: { padding: { top: 36 } },
         plugins: {
           legend: {
             display: true,
@@ -79,10 +141,10 @@ var Charts = (function () {
         },
         scales: {
           x: { grid: { display: false } },
-          y: { beginAtZero: true, grace: '15%', ticks: { precision: 0 }, grid: { color: '#f0f0f5' } }
+          y: { beginAtZero: true, grace: '20%', ticks: { precision: 0 }, grid: { color: '#f0f0f5' } }
         }
       },
-      plugins: [barValuePlugin]
+      plugins: [barValueWithPctPlugin]
     });
   }
 
