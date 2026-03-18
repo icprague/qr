@@ -41,8 +41,8 @@ var Dates = (function () {
     return {
       'today':          { ranges: [{ start: t, end: t }], label: 'Today — ' + t },
       'yesterday':      { ranges: [{ start: y, end: y }], label: 'Yesterday — ' + y },
-      'this-sunday':    { ranges: [{ start: fmt(thisSun), end: fmt(thisSun) }], label: 'This Sunday — ' + fmt(thisSun) },
-      'last-sunday':    { ranges: [{ start: fmt(lastSun), end: fmt(lastSun) }], label: 'Last Sunday — ' + fmt(lastSun) },
+      'this-sunday':    { ranges: [{ start: fmt(thisSun), end: fmt(thisSun) }], label: 'Last Sunday — ' + fmt(thisSun) },
+      'last-sunday':    { ranges: [{ start: fmt(lastSun), end: fmt(lastSun) }], label: 'Previous Sunday — ' + fmt(lastSun) },
       'last-4-sundays': (function () {
         var ranges = [];
         var labels = [];
@@ -55,8 +55,8 @@ var Dates = (function () {
         labels.reverse();
         return { ranges: ranges, label: 'Last 4 Sundays: ' + labels.join(', '), comparison: true };
       })(),
-      'this-midweek':   { ranges: [{ start: fmt(thisMidStart), end: fmt(thisMidEnd) }], label: 'This midweek — Mon ' + fmt(thisMidStart) + ' to Sat ' + fmt(thisMidEnd) },
-      'last-midweek':   { ranges: [{ start: fmt(lastMidStart), end: fmt(lastMidEnd) }], label: 'Last midweek — Mon ' + fmt(lastMidStart) + ' to Sat ' + fmt(lastMidEnd) },
+      'this-midweek':   { ranges: [{ start: fmt(thisMidStart), end: fmt(thisMidEnd) }], label: 'Last midweek — Mon ' + fmt(thisMidStart) + ' to Sat ' + fmt(thisMidEnd) },
+      'last-midweek':   { ranges: [{ start: fmt(lastMidStart), end: fmt(lastMidEnd) }], label: 'Previous midweek — Mon ' + fmt(lastMidStart) + ' to Sat ' + fmt(lastMidEnd) },
       'last-4-midweeks': (function () {
         var ranges = [];
         var labels = [];
@@ -90,5 +90,35 @@ var Dates = (function () {
     return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
   }
 
-  return { fmt: fmt, presets: presets, customRange: customRange, shortLabel: shortLabel };
+  /** Start date for computing averages. */
+  var AVERAGE_START = new Date(2026, 2, 15); // March 15, 2026
+
+  /** All Sunday date ranges from AVERAGE_START to the most recent Sunday. */
+  function allSundayRanges() {
+    var ranges = [];
+    var sun = new Date(AVERAGE_START);
+    // AVERAGE_START (March 15, 2026) is already a Sunday
+    var latest = mostRecentSunday(today());
+    while (sun <= latest) {
+      ranges.push({ start: fmt(sun), end: fmt(sun) });
+      sun = addDays(sun, 7);
+    }
+    return ranges;
+  }
+
+  /** All midweek (Mon–Sat) ranges from the week of AVERAGE_START onwards. */
+  function allMidweekRanges() {
+    var ranges = [];
+    var sun = new Date(AVERAGE_START);
+    var latest = mostRecentSunday(today());
+    while (sun <= latest) {
+      var mStart = addDays(sun, -6); // Monday
+      var mEnd = addDays(sun, -1);   // Saturday
+      ranges.push({ start: fmt(mStart), end: fmt(mEnd) });
+      sun = addDays(sun, 7);
+    }
+    return ranges;
+  }
+
+  return { fmt: fmt, presets: presets, customRange: customRange, shortLabel: shortLabel, allSundayRanges: allSundayRanges, allMidweekRanges: allMidweekRanges };
 })();

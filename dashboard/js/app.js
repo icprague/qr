@@ -106,7 +106,70 @@
       return;
     }
 
-    renderSingle(report);
+    // Fetch averages for sunday/midweek presets
+    var averages = null;
+    if (_currentPreset === 'this-sunday' || _currentPreset === 'last-sunday') {
+      averages = await fetchAverages(token, 'sunday');
+    } else if (_currentPreset === 'this-midweek' || _currentPreset === 'last-midweek') {
+      averages = await fetchAverages(token, 'midweek');
+    }
+
+    renderSingle(report, averages);
+  }
+
+  async function fetchAverages(token, type) {
+    var ranges = type === 'sunday' ? Dates.allSundayRanges() : Dates.allMidweekRanges();
+    if (ranges.length === 0) return null;
+
+    var results = await Promise.all(ranges.map(function (r) {
+      return GA.fetchReport(_propertyId, r.start, r.end, token);
+    }));
+
+    var count = results.length;
+    var avgTotals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
+    var avgVisitors = { totalUsers: 0, newUsers: 0, returningUsers: 0 };
+    var buttonSums = {};
+
+    results.forEach(function (r) {
+      avgTotals.eventCount += r.totals.eventCount;
+      avgTotals.totalUsers += r.totals.totalUsers;
+      avgTotals.newUsers += (r.totals.newUsers || 0);
+      avgTotals.returningUsers += (r.totals.returningUsers || 0);
+      if (r.visitors) {
+        avgVisitors.totalUsers += r.visitors.totalUsers;
+        avgVisitors.newUsers += r.visitors.newUsers;
+        avgVisitors.returningUsers += r.visitors.returningUsers;
+      }
+      (r.byButton || []).forEach(function (b) {
+        if (!buttonSums[b.key]) {
+          buttonSums[b.key] = { totalUsers: 0, newUsers: 0, returningUsers: 0, eventCount: 0 };
+        }
+        buttonSums[b.key].totalUsers += b.totalUsers;
+        buttonSums[b.key].newUsers += (b.newUsers || 0);
+        buttonSums[b.key].returningUsers += (b.returningUsers || 0);
+        buttonSums[b.key].eventCount += b.eventCount;
+      });
+    });
+
+    avgTotals.eventCount /= count;
+    avgTotals.totalUsers /= count;
+    avgTotals.newUsers /= count;
+    avgTotals.returningUsers /= count;
+    avgVisitors.totalUsers /= count;
+    avgVisitors.newUsers /= count;
+    avgVisitors.returningUsers /= count;
+
+    var avgByButton = {};
+    Object.keys(buttonSums).forEach(function (k) {
+      avgByButton[k] = {
+        totalUsers: buttonSums[k].totalUsers / count,
+        newUsers: buttonSums[k].newUsers / count,
+        returningUsers: buttonSums[k].returningUsers / count,
+        eventCount: buttonSums[k].eventCount / count
+      };
+    });
+
+    return { totals: avgTotals, visitors: avgVisitors, byButton: avgByButton, count: count };
   }
 
   async function fetchComparison(token) {
@@ -132,7 +195,10 @@
   }
 
   // ── Rendering: single range ────────────────────────────────────────
-  function renderSingle(report) {
+  // Store current averages for toggle re-renders
+  var _currentAverages = null;
+
+  function renderSingle(report, averages) {
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('comparison-section').classList.add('hidden');
     document.getElementById('date-label').textContent = _currentDateConfig.label;
@@ -145,9 +211,10 @@
       : GA.aggregateBy(report.rows, 'source', 'sourceLabel');
     _visitorsBySource = report.visitorsBySource || [];
     _allRows = report.rows;
+    _currentAverages = averages;
 
-    renderSummaryCards(report.totals, _byEvent, report.visitors);
-    Charts.renderUsersChart(_byEvent, _showNvr);
+    renderSummaryCards(report.totals, _byEvent, report.visitors, averages);
+    Charts.renderUsersChart(_byEvent, _showNvr, averages);
     renderSourcesView();
   }
 
@@ -156,6 +223,7 @@
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('comparison-section').classList.remove('hidden');
     document.getElementById('date-label').textContent = _currentDateConfig.label;
+    _currentAverages = null;
 
     var combinedTotals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
     var combinedVisitors = { totalUsers: 0, newUsers: 0, returningUsers: 0 };
@@ -253,17 +321,42 @@
   }
 
   // ── Summary cards ──────────────────────────────────────────────────
-  function renderSummaryCards(totals, byEvent, visitors) {
+  function pctChange(current, average) {
+    if (!average || average === 0) return null;
+    return Math.round(((current - average) / average) * 100);
+  }
+
+  function pctBadge(pct) {
+    if (pct === null || pct === undefined) return '';
+    var sign = pct >= 0 ? '+' : '';
+    var cls = pct >= 0 ? 'pct-up' : 'pct-down';
+    return ' <span class="pct-badge ' + cls + '">' + sign + pct + '%</span>';
+  }
+
+  function renderSummaryCards(totals, byEvent, visitors, averages) {
     var topButton = byEvent.length > 0
       ? byEvent.reduce(function (a, b) { return a.totalUsers > b.totalUsers ? a : b; })
       : null;
     var v = visitors || { totalUsers: 0, newUsers: 0, returningUsers: 0 };
 
     var container = document.getElementById('summary-cards');
+
+    var totalVisitedPct = null, totalClickedPct = null;
+    var newVisitedPct = null, newClickedPct = null;
+    var retVisitedPct = null, retClickedPct = null;
+    if (averages) {
+      totalVisitedPct = pctChange(v.totalUsers, averages.visitors.totalUsers);
+      totalClickedPct = pctChange(totals.totalUsers, averages.totals.totalUsers);
+      newVisitedPct = pctChange(v.newUsers, averages.visitors.newUsers);
+      newClickedPct = pctChange(totals.newUsers || 0, averages.totals.newUsers);
+      retVisitedPct = pctChange(v.returningUsers, averages.visitors.returningUsers);
+      retClickedPct = pctChange(totals.returningUsers || 0, averages.totals.returningUsers);
+    }
+
     var html =
-      cardDual('Total', v.totalUsers, 'visited', totals.totalUsers, 'clicked') +
-      cardDual('New', v.newUsers, 'visited', totals.newUsers || 0, 'clicked') +
-      cardDual('Returning', v.returningUsers, 'visited', totals.returningUsers || 0, 'clicked');
+      cardDual('Total', v.totalUsers, 'visited', totals.totalUsers, 'clicked', totalVisitedPct, totalClickedPct) +
+      cardDual('New', v.newUsers, 'visited', totals.newUsers || 0, 'clicked', newVisitedPct, newClickedPct) +
+      cardDual('Returning', v.returningUsers, 'visited', totals.returningUsers || 0, 'clicked', retVisitedPct, retClickedPct);
 
     if (topButton) {
       html += card('Top button', topButton.totalUsers, topButton.label);
@@ -280,12 +373,12 @@
       '</div>';
   }
 
-  function cardDual(label, primary, primarySub, secondary, secondarySub) {
+  function cardDual(label, primary, primarySub, secondary, secondarySub, primaryPct, secondaryPct) {
     return '<div class="summary-card">' +
       '<div class="label">' + label + '</div>' +
-      '<div class="value">' + primary.toLocaleString() + '</div>' +
+      '<div class="value">' + primary.toLocaleString() + pctBadge(primaryPct) + '</div>' +
       '<div class="sub">' + primarySub + '</div>' +
-      '<div class="value-secondary">' + secondary.toLocaleString() + ' <span>' + secondarySub + '</span></div>' +
+      '<div class="value-secondary">' + secondary.toLocaleString() + pctBadge(secondaryPct) + ' <span>' + secondarySub + '</span></div>' +
       '</div>';
   }
 
@@ -353,12 +446,12 @@
     btnUsersOnly.addEventListener('click', function () {
       _showNvr = false;
       setToggleActive(btnUsersOnly, btnUsersNvr);
-      if (_byEvent) Charts.renderUsersChart(_byEvent, false);
+      if (_byEvent) Charts.renderUsersChart(_byEvent, false, _currentAverages);
     });
     btnUsersNvr.addEventListener('click', function () {
       _showNvr = true;
       setToggleActive(btnUsersNvr, btnUsersOnly);
-      if (_byEvent) Charts.renderUsersChart(_byEvent, true);
+      if (_byEvent) Charts.renderUsersChart(_byEvent, true, _currentAverages);
     });
 
     // Sources chart toggle (3 buttons)

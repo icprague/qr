@@ -382,6 +382,27 @@ h2.section-title {
   background: #fafafe;
 }
 
+/* Percentage change badges */
+.pct-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.pct-badge.pct-up {
+  background: #e6f9ef;
+  color: #1a8a4a;
+}
+
+.pct-badge.pct-down {
+  background: #fde8e8;
+  color: #c53030;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .app { padding: 16px 16px 40px; }
