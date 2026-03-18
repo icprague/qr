@@ -173,6 +173,29 @@ gtag('config', 'G-YL2P0BP685', { send_page_view: false });
   text-underline-offset: 2px;
 }
 
+.icp-social-icons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.icp-social-icons a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icp-social-icons svg {
+  width: 28px;
+  height: 28px;
+  transition: opacity 0.2s ease;
+}
+
+.icp-social-icons a:hover svg {
+  opacity: 0.6;
+}
+
 .icp-wrap .icp-note {
   font-family: 'Lato', sans-serif;
   font-weight: 400;
@@ -375,12 +398,22 @@ body,
            icp-btn-connect   → Connect With Us (Planning Center form)
            icp-btn-usd       → Card Payment / Give Online (Stripe link, in GIVING VIEW below)
            ============================================================ -->
+      <!-- Only shown when utm_content=card or utm_source=card -->
+      <a class="icp-btn" id="icp-btn-location" href="https://maps.app.goo.gl/RxN6Lzey4pCz5XDMA" target="_blank" style="display:none">Sunday Service Location</a>
       <a class="icp-btn" id="icp-btn-worship" href="https://icp.churchcenter.com/services/service_types/1235734/plans/before/today/public" target="_blank">Order of Worship</a>
       <a class="icp-btn" id="icp-btn-newsletter" href="https://mailchi.mp/ba9f7bd623da/this-week-at-icp-16540686" target="_blank">This Week&#39;s Newsletter</a>
       <a class="icp-btn" id="icp-btn-connect" href="https://icp.churchcenter.com/people/forms/576373" target="_blank">Connect With Us</a>
       <a class="icp-btn" href="javascript:void(0)" id="icp-btn-give-nav">Supporting ICP</a>
       <!-- Only shown when utm_content=card or utm_source=card -->
-      <a class="icp-btn" id="icp-btn-location" href="https://maps.app.goo.gl/RxN6Lzey4pCz5XDMA" target="_blank" style="display:none">Sunday Service Location</a>
+      <a class="icp-btn" id="icp-btn-livestream" href="https://www.youtube.com/channel/UCwMPFla-F1hydcc8NGbt-dA" target="_blank" style="display:none">Livestream (YouTube)</a>
+    </div>
+    <div class="icp-social-icons">
+      <a id="icp-btn-facebook" href="https://www.facebook.com/ICPrague/" target="_blank" rel="noopener" aria-label="Facebook">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#222a58" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+      <a id="icp-btn-instagram" href="https://www.instagram.com/icprague/" target="_blank" rel="noopener" aria-label="Instagram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#222a58" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1" fill="#222a58" stroke="none"/></svg>
+      </a>
     </div>
     <p class="icp-info-note">
       <a href="https://www.icprague.cz" target="_blank" rel="noopener">icprague.cz</a>
@@ -504,7 +537,10 @@ body,
     'icp-btn-worship':    'order_of_worship',
     'icp-btn-connect':    'connect_card',
     'icp-btn-usd':        'giving_usd',
-    'icp-btn-location':   'location'
+    'icp-btn-location':   'location',
+    'icp-btn-livestream': 'livestream',
+    'icp-btn-facebook':   'facebook',
+    'icp-btn-instagram':  'instagram'
   };
   Object.keys(tracked).forEach(function (id) {
     var el = document.getElementById(id);
@@ -562,10 +598,14 @@ body,
     });
   }
 
-  // --- Show location button for take-home card; hide title ---
+  // --- Show location & livestream buttons for take-home card; hide title & supporting ICP ---
   if (params.get('utm_content') === 'card' || params.get('utm_source') === 'card') {
     var locBtn = document.getElementById('icp-btn-location');
     if (locBtn) locBtn.style.display = 'flex';
+    var livestreamBtn = document.getElementById('icp-btn-livestream');
+    if (livestreamBtn) livestreamBtn.style.display = 'flex';
+    var giveNav = document.getElementById('icp-btn-give-nav');
+    if (giveNav) giveNav.style.display = 'none';
     var mainHeading = document.getElementById('icp-main-heading');
     if (mainHeading) mainHeading.style.display = 'none';
   }
