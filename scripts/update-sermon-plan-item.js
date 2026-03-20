@@ -387,6 +387,26 @@ async function writeSermonToPlanningCenter(sermonTitle, scripture) {
     }
   }
 
+  // --- Prepend ♪ to all song items ---
+  const songItems = allItems.filter((it) => it.attributes.item_type === 'song');
+  for (const songItem of songItems) {
+    const currentTitle = (songItem.attributes.title || '').trim();
+    if (currentTitle.startsWith('♪')) {
+      console.log(`  [${songItem.id}] "${currentTitle}" — already current, skipping`);
+    } else {
+      const newTitle = `♪ ${currentTitle}`;
+      console.log(`  [${songItem.id}] "${currentTitle}"`);
+      console.log(`       → "${newTitle}"`);
+      await httpPatch(
+        `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items/${songItem.id}`,
+        { data: { type: 'Item', id: songItem.id, attributes: { title: newTitle } } },
+        authHeader
+      );
+      console.log(`       ✓ Updated`);
+      updatedCount++;
+    }
+  }
+
   if (updatedCount === 0) {
     console.log('No items needed updating.');
   } else {
