@@ -104,14 +104,14 @@ var Charts = (function () {
 
             // Draw value
             chartCtx.fillStyle = '#666';
-            chartCtx.fillText(val, bar.x, bar.y - (pct !== null ? 20 : 4));
+            chartCtx.fillText(val, bar.x, bar.y - (pct !== null ? 16 : 4));
 
             // Draw percentage below value
             if (pct !== null) {
               var sign = pct >= 0 ? '+' : '';
               chartCtx.fillStyle = pct >= 0 ? '#1a8a4a' : '#c53030';
               chartCtx.font = '600 11px Inter, sans-serif';
-              chartCtx.fillText(sign + pct + '%', bar.x, bar.y - 6);
+              chartCtx.fillText(sign + pct + '%', bar.x, bar.y - 3);
             }
 
             chartCtx.restore();
@@ -129,7 +129,7 @@ var Charts = (function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 80 } },
+        layout: { padding: { top: 36 } },
         plugins: {
           legend: {
             display: true,
