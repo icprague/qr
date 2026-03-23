@@ -109,16 +109,24 @@
     // Fetch averages for sunday/midweek presets
     var averages = null;
     if (_currentPreset === 'this-sunday' || _currentPreset === 'last-sunday') {
-      averages = await fetchAverages(token, 'sunday');
+      averages = await fetchAverages(token, 'sunday', _currentDateConfig.ranges[0]);
     } else if (_currentPreset === 'this-midweek' || _currentPreset === 'last-midweek') {
-      averages = await fetchAverages(token, 'midweek');
+      averages = await fetchAverages(token, 'midweek', _currentDateConfig.ranges[0]);
     }
 
     renderSingle(report, averages);
   }
 
-  async function fetchAverages(token, type) {
+  async function fetchAverages(token, type, currentRange) {
     var ranges = type === 'sunday' ? Dates.allSundayRanges() : Dates.allMidweekRanges();
+
+    // Only average dates strictly before the current date being viewed so that
+    // (a) the current week is never part of its own baseline, and
+    // (b) the very first Sunday has no prior data → returns null → no % badges.
+    if (currentRange) {
+      ranges = ranges.filter(function (r) { return r.start < currentRange.start; });
+    }
+
     if (ranges.length === 0) return null;
 
     var results = await Promise.all(ranges.map(function (r) {
