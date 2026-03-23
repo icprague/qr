@@ -58,7 +58,10 @@ var Export = (function () {
     var canvas = await html2canvas(dashboard, {
       scale: 2,
       backgroundColor: '#ffffff',
-      logging: false
+      logging: false,
+      width: dashboard.scrollWidth,
+      height: dashboard.scrollHeight,
+      windowWidth: dashboard.scrollWidth
     });
 
     // Clean up
