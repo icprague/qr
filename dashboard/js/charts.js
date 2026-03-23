@@ -102,21 +102,16 @@ var Charts = (function () {
               }
             }
 
-            // Keep labels inside the chart area (never drift into the legend)
-            var chartTop = chart.chartArea ? chart.chartArea.top : 0;
-            var pctY   = Math.max(bar.y - 6,  chartTop + 14);
-            var valY   = Math.max(bar.y - 20, chartTop + 28);
-
             // Draw value
             chartCtx.fillStyle = '#666';
-            chartCtx.fillText(val, bar.x, pct !== null ? valY : Math.max(bar.y - 4, chartTop + 16));
+            chartCtx.fillText(val, bar.x, bar.y - (pct !== null ? 20 : 4));
 
             // Draw percentage below value
             if (pct !== null) {
               var sign = pct >= 0 ? '+' : '';
               chartCtx.fillStyle = pct >= 0 ? '#1a8a4a' : '#c53030';
               chartCtx.font = '600 11px Inter, sans-serif';
-              chartCtx.fillText(sign + pct + '%', bar.x, pctY);
+              chartCtx.fillText(sign + pct + '%', bar.x, bar.y - 6);
             }
 
             chartCtx.restore();
@@ -134,7 +129,7 @@ var Charts = (function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 52 } },
+        layout: { padding: { top: 80 } },
         plugins: {
           legend: {
             display: true,
