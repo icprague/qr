@@ -129,12 +129,11 @@ var Charts = (function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 36 } },
+        layout: { padding: { top: 20 } },
         plugins: {
           legend: {
             display: true,
-            position: 'top',
-            align: 'start',
+            position: 'bottom',
             labels: { boxWidth: 12, font: { size: 12 }, padding: 16 }
           },
           datalabels: false
