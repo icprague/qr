@@ -129,9 +129,10 @@
 
     if (ranges.length === 0) return null;
 
-    var results = await Promise.all(ranges.map(function (r) {
-      return GA.fetchReport(_propertyId, r.start, r.end, token);
-    }));
+    var results = [];
+    for (var i = 0; i < ranges.length; i++) {
+      results.push(await GA.fetchReport(_propertyId, ranges[i].start, ranges[i].end, token));
+    }
 
     var count = results.length;
     var avgTotals = { eventCount: 0, totalUsers: 0, newUsers: 0, returningUsers: 0 };
@@ -183,12 +184,10 @@
   async function fetchComparison(token) {
     var ranges = _currentDateConfig.ranges;
     var results = {};
-    var promises = ranges.map(function (r) {
-      return GA.fetchReport(_propertyId, r.start, r.end, token).then(function (report) {
-        results[r.start] = report;
-      });
-    });
-    await Promise.all(promises);
+    for (var i = 0; i < ranges.length; i++) {
+      var r = ranges[i];
+      results[r.start] = await GA.fetchReport(_propertyId, r.start, r.end, token);
+    }
 
     _lastComparison = results;
     _isComparison = true;
