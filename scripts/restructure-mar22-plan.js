@@ -245,7 +245,7 @@ async function restructurePlan(targetDate, serviceTypeId, authHeader, headers) {
 
   for (const filter of ['future', 'past']) {
     const plansRaw = await httpGet(
-      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=${filter}&per_page=10`,
+      `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans?filter=${filter}&per_page=100`,
       { headers }
     );
     const plans = JSON.parse(plansRaw);
