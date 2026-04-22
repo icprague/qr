@@ -9,15 +9,15 @@ name: "Write Sermon Title to Planning Center Order of Service"
 # Prague is UTC+1 (CET, winter) / UTC+2 (CEST, summer).
 
 on:
-  schedule:
-    # Every Friday at 1:15, 2:15, 3:15, 4:15 PM Prague time (CET = UTC+1).
-    # During CEST (summer, UTC+2) these shift 1 hour later in local time.
-    # Script exits quietly if newsletter not sent yet (retries next hour).
-    # On the last attempt (4th), sends failure email if still not found.
-    - cron: '15 12 * * 5'  # 1:15 PM Prague (CET)
-    - cron: '15 13 * * 5'  # 2:15 PM Prague (CET)
-    - cron: '15 14 * * 5'  # 3:15 PM Prague (CET)
-    - cron: '15 15 * * 5'  # 4:15 PM Prague (CET)
+  # schedule:  # PAUSED - uncomment to re-enable automatic Friday triggers
+  #   # Every Friday at 1:15, 2:15, 3:15, 4:15 PM Prague time (CET = UTC+1).
+  #   # During CEST (summer, UTC+2) these shift 1 hour later in local time.
+  #   # Script exits quietly if newsletter not sent yet (retries next hour).
+  #   # On the last attempt (4th), sends failure email if still not found.
+  #   - cron: '15 12 * * 5'  # 1:15 PM Prague (CET)
+  #   - cron: '15 13 * * 5'  # 2:15 PM Prague (CET)
+  #   - cron: '15 14 * * 5'  # 3:15 PM Prague (CET)
+  #   - cron: '15 15 * * 5'  # 4:15 PM Prague (CET)
   workflow_dispatch: # Manual trigger from the Actions tab
 
 jobs:
