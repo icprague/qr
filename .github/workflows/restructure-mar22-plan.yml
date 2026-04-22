@@ -8,8 +8,8 @@ name: "Restructure Sunday Plan"
 on:
   workflow_dispatch:
     inputs:
-      date:
-        description: 'Sunday date to restructure (YYYY-MM-DD)'
+      dates:
+        description: 'Sunday date(s) to restructure (YYYY-MM-DD). For multiple, separate with commas: 2026-03-15,2026-03-22'
         required: true
         type: string
       mode:
@@ -36,11 +36,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restructure plan
+      - name: Restructure plan(s)
         env:
           PLANNING_CENTER_APP_ID: ${{ secrets.PLANNING_CENTER_APP_ID }}
           PLANNING_CENTER_SECRET: ${{ secrets.PLANNING_CENTER_SECRET }}
-          TARGET_DATE: ${{ inputs.date }}
+          TARGET_DATES: ${{ inputs.dates }}
         run: |
           if [ "${{ inputs.mode }}" = "apply" ]; then
             node scripts/restructure-mar22-plan.js --apply
