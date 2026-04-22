@@ -1,7 +1,7 @@
 /**
  * restructure-plan.js
  *
- * Restructures a Planning Center Sunday plan to match the standard template.
+ * Restructures one or more Planning Center Sunday plans to match the standard template.
  * Detects communion Sundays from the plan title and adds a Communion header.
  *
  * Rules:
@@ -12,13 +12,15 @@
  *     between "Sermon title" and the last song before Benediction.
  *
  * Usage:
- *   TARGET_DATE=2026-03-15 node scripts/restructure-mar22-plan.js            # dry run
- *   TARGET_DATE=2026-03-15 node scripts/restructure-mar22-plan.js --apply    # apply
+ *   TARGET_DATES=2026-03-15 node scripts/restructure-mar22-plan.js                        # single date, dry run
+ *   TARGET_DATES=2026-03-15,2026-03-22 node scripts/restructure-mar22-plan.js             # multiple dates, dry run
+ *   TARGET_DATES=2026-03-15,2026-03-22 node scripts/restructure-mar22-plan.js --apply     # multiple dates, apply
  *
  * Required environment variables:
  *   PLANNING_CENTER_APP_ID
  *   PLANNING_CENTER_SECRET
- *   TARGET_DATE  — the Sunday date to restructure (YYYY-MM-DD)
+ *   TARGET_DATES  — comma-separated Sunday dates to restructure (YYYY-MM-DD)
+ *                   Also accepts TARGET_DATE for single-date backward compatibility.
  */
 
 'use strict';
@@ -26,9 +28,16 @@
 const https = require('https');
 
 const DRY_RUN = !process.argv.includes('--apply');
-const TARGET_DATE = process.env.TARGET_DATE;
-if (!TARGET_DATE || !/^\d{4}-\d{2}-\d{2}$/.test(TARGET_DATE)) {
-  console.error('TARGET_DATE environment variable is required (format: YYYY-MM-DD).');
+
+const rawDates = process.env.TARGET_DATES || process.env.TARGET_DATE;
+if (!rawDates) {
+  console.error('TARGET_DATES environment variable is required (format: YYYY-MM-DD, comma-separated for multiple).');
+  process.exit(1);
+}
+const TARGET_DATES = rawDates.split(',').map((d) => d.trim()).filter(Boolean);
+const invalid = TARGET_DATES.filter((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d));
+if (invalid.length) {
+  console.error(`Invalid date format (expected YYYY-MM-DD): ${invalid.join(', ')}`);
   process.exit(1);
 }
 
@@ -225,29 +234,11 @@ function applyRule(rules, title) {
 // Main
 // ---------------------------------------------------------------------------
 
-async function main() {
-  const { PLANNING_CENTER_APP_ID, PLANNING_CENTER_SECRET } = process.env;
-  if (!PLANNING_CENTER_APP_ID || !PLANNING_CENTER_SECRET) {
-    throw new Error('PLANNING_CENTER_APP_ID and PLANNING_CENTER_SECRET must be set.');
-  }
-
-  const authHeader =
-    'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
-  const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
-
-  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}Restructuring plan for ${TARGET_DATE}.\n`);
-
-  // 1. Get service type
-  const stRaw = await httpGet('https://api.planningcenteronline.com/services/v2/service_types', { headers });
-  const serviceTypes = JSON.parse(stRaw);
-  if (!serviceTypes.data?.length) throw new Error('No service types found.');
-  const serviceTypeId = serviceTypes.data[0].id;
-  console.log(`Service type: ${serviceTypes.data[0].attributes.name} (${serviceTypeId})\n`);
-
-  // 2. Find the plan for TARGET_DATE — check future plans first, then recent past
+async function restructurePlan(targetDate, serviceTypeId, authHeader, headers) {
+  // 1. Find the plan for targetDate — check future plans first, then recent past.
   //    Match against sort_date (YYYY-MM-DDTHH:MM:SS) or the human-readable dates field.
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const [, mon, day] = TARGET_DATE.split('-');
+  const [, mon, day] = targetDate.split('-');
   const shortDate = `${monthNames[parseInt(mon, 10) - 1]} ${parseInt(day, 10)}`;
 
   let targetPlan = null;
@@ -260,7 +251,7 @@ async function main() {
     const plans = JSON.parse(plansRaw);
     for (const plan of plans.data || []) {
       const planDate = plan.attributes.sort_date || plan.attributes.dates || '';
-      if (planDate.startsWith(TARGET_DATE) || planDate.includes(shortDate)) {
+      if (planDate.startsWith(targetDate) || planDate.includes(shortDate)) {
         targetPlan = plan;
         break;
       }
@@ -270,7 +261,7 @@ async function main() {
 
   if (!targetPlan) {
     throw new Error(
-      `Could not find a plan for ${TARGET_DATE}. ` +
+      `Could not find a plan for ${targetDate}. ` +
       'Check the date or run fetch-plan-items.js to see available plans.'
     );
   }
@@ -283,7 +274,7 @@ async function main() {
   }
   console.log();
 
-  // 3. Fetch plan items
+  // 2. Fetch plan items
   const itemsRaw = await httpGet(
     `https://api.planningcenteronline.com/services/v2/service_types/${serviceTypeId}/plans/${targetPlan.id}/items?per_page=100`,
     { headers }
@@ -293,7 +284,7 @@ async function main() {
 
   console.log(`Current plan has ${allItems.length} items. Analyzing...\n`);
 
-  // 4. Process each item
+  // 3. Process each item
   let updatedCount = 0;
   let deletedCount = 0;
   let createdCount = 0;
@@ -408,7 +399,7 @@ async function main() {
     updatedCount++;
   }
 
-  // 5. Create missing headers
+  // 4. Create missing headers
   // Template requires:
   //   - "Announcements + Welcome Guests" header before the Moderator item
   //   - "Scripture Reading" header before the Scripture item
@@ -466,7 +457,7 @@ async function main() {
     }
   }
 
-  // 6. Summary
+  // 5. Summary
   console.log('\n' + '─'.repeat(60));
   console.log(`Songs skipped (untouched): ${skippedSongs}`);
   console.log(`Items ${DRY_RUN ? 'that would be deleted' : 'deleted'}: ${deletedCount}`);
@@ -474,9 +465,50 @@ async function main() {
   console.log(`Headers ${DRY_RUN ? 'that would be created' : 'created'}: ${createdCount}`);
   if (DRY_RUN) {
     console.log('\nThis was a DRY RUN. No changes were made.');
-    console.log(`To apply: TARGET_DATE=${TARGET_DATE} node scripts/restructure-mar22-plan.js --apply`);
   } else {
     console.log('\nDone. Plan has been restructured.');
+  }
+}
+
+async function main() {
+  const { PLANNING_CENTER_APP_ID, PLANNING_CENTER_SECRET } = process.env;
+  if (!PLANNING_CENTER_APP_ID || !PLANNING_CENTER_SECRET) {
+    throw new Error('PLANNING_CENTER_APP_ID and PLANNING_CENTER_SECRET must be set.');
+  }
+
+  const authHeader =
+    'Basic ' + Buffer.from(`${PLANNING_CENTER_APP_ID}:${PLANNING_CENTER_SECRET}`).toString('base64');
+  const headers = { Authorization: authHeader, 'Content-Type': 'application/json' };
+
+  console.log(
+    `${DRY_RUN ? '[DRY RUN] ' : ''}Restructuring ${TARGET_DATES.length} plan(s): ${TARGET_DATES.join(', ')}.\n`
+  );
+
+  // Fetch service type once, reuse for all dates
+  const stRaw = await httpGet('https://api.planningcenteronline.com/services/v2/service_types', { headers });
+  const serviceTypes = JSON.parse(stRaw);
+  if (!serviceTypes.data?.length) throw new Error('No service types found.');
+  const serviceTypeId = serviceTypes.data[0].id;
+  console.log(`Service type: ${serviceTypes.data[0].attributes.name} (${serviceTypeId})\n`);
+
+  for (let i = 0; i < TARGET_DATES.length; i++) {
+    const targetDate = TARGET_DATES[i];
+    if (TARGET_DATES.length > 1) {
+      console.log(`${'═'.repeat(60)}`);
+      console.log(`Plan ${i + 1} of ${TARGET_DATES.length}: ${targetDate}`);
+      console.log(`${'═'.repeat(60)}\n`);
+    } else {
+      console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}Restructuring plan for ${targetDate}.\n`);
+    }
+    await restructurePlan(targetDate, serviceTypeId, authHeader, headers);
+    if (i < TARGET_DATES.length - 1) console.log();
+  }
+
+  if (DRY_RUN && TARGET_DATES.length > 1) {
+    console.log(`\nThis was a DRY RUN. No changes were made.`);
+    console.log(`To apply: TARGET_DATES=${TARGET_DATES.join(',')} node scripts/restructure-mar22-plan.js --apply`);
+  } else if (DRY_RUN) {
+    console.log(`\nTo apply: TARGET_DATES=${TARGET_DATES[0]} node scripts/restructure-mar22-plan.js --apply`);
   }
 }
 
